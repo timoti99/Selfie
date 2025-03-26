@@ -40,14 +40,9 @@ function createDummyEvent() {
     .catch(err => console.error('Failed to create dummy event:', err));
 }
 
-
-app.use(express.static(path.join(__dirname, 'client', 'build')));
-
-
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));
+  res.send('server running in development mode');
 });
-
 
 // Get events by labels
 app.get('/events/by-label', async (req, res) => {
@@ -142,4 +137,3 @@ app.delete('/events/:id', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-

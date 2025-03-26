@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 
+
+const PORT = process.env.PORT || 5000;
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://thomasbernardi2:LRjmdpjyJya5joWj@selfieapp.iffb6wt.mongodb.net/?retryWrites=true&w=majority&appName=SelfieApp"
+
 dotenv.config();
 
 const app = express();

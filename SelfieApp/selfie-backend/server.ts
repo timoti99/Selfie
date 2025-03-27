@@ -1,20 +1,31 @@
 import express from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import cors from "cors";
-
-
-const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://thomasbernardi2:LRjmdpjyJya5joWj@selfieapp.iffb6wt.mongodb.net/?retryWrites=true&w=majority&appName=SelfieApp"
+import dotenv from "dotenv";
+import authRoutes from "./routes/auth";
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+
 app.use(cors());
+app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+// Definizione della porta con valore predefinito
+const PORT: string = process.env.PORT || "3000";
+
+// Controllo della variabile MONGO_URI prima di usarla
+if (!process.env.MONGO_URI) {
+  throw new Error("MONGO_URI non è definito. Verifica il file .env");
+}
+const MONGO_URI: string = process.env.MONGO_URI;
+
+// Connessione a MongoDB (senza opzioni obsolete)
+mongoose.connect(MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log(err));
+  .catch(err => console.log("Errore connessione MongoDB:", err));
 
-app.listen(3001, () => console.log("Server running on port 3001"));
+app.use("/api/auth", authRoutes);
+
+// Avvio del server
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

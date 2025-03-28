@@ -1,15 +1,17 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Home from "./pages/Home";
-import Calendar from "./pages/Calendar";
-import Notes from "./pages/Notes";
+import Login from "./login/Login";
+import Register from "./login/Register";
+import './App.css'
+
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/calendar" element={<Calendar />} />
-        <Route path="/notes" element={<Notes />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      {/* Aggiungi una rotta di fallback se necessario */}
+      <Route path="*" element={<Login />} />
       </Routes>
     </Router>
   );

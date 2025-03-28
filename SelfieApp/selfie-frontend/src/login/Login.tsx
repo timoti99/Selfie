@@ -25,13 +25,17 @@ return (
   <p>Accedi per organizzare la tua vita con SELFIE!</p>
 
   <form onSubmit={handleSubmit}>
-    <input
+    
+    <label>Inserisci il tuo Username:</label>
+  <input  
       type="text"
       name="username"
       placeholder="Inserisci username"
       onChange={handleChange}
       required
     />
+
+    <label>Inserisci la tua password:</label>
     <input
       type="password"
       name="password"

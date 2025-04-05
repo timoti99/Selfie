@@ -7,24 +7,28 @@ import authRoutes from "./routes/auth";
 dotenv.config();
 
 const app = express();
+const PORT: string = process.env.PORT || "3000";
+const MONGO_URI: string | undefined = process.env.MONGO_URI;
 
 app.use(cors());
 app.use(express.json());
 
-// Definizione della porta con valore predefinito
-const PORT: string = process.env.PORT || "3000";
 
 // Controllo della variabile MONGO_URI prima di usarla
-if (!process.env.MONGO_URI) {
-  throw new Error("MONGO_URI non è definito. Verifica il file .env");
+if (!MONGO_URI) {
+  console.error("Errore: MONGO_URI non è definito nel file .env")
+  process.exit(1);
 }
-const MONGO_URI: string = process.env.MONGO_URI;
 
 // Connessione a MongoDB (senza opzioni obsolete)
 mongoose.connect(MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log("Errore connessione MongoDB:", err));
+  .catch((err) => {
+    console.error("Errore connessione MongoDB:", err);
+    process.exit(1);
+  });
 
+  
 app.use("/api/auth", authRoutes);
 
 // Avvio del server

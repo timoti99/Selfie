@@ -2,6 +2,8 @@ import { useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 
+
+
 const Register = () => {
   const [formData, setFormData] = useState({
     nome: "",
@@ -22,11 +24,12 @@ const Register = () => {
       await axios.post("http://localhost:3000/api/auth/register", formData);
       alert("Registrazione completata! Ora puoi effettuare il login.");
     } catch (err) {
-      alert("Errore nella registrazione");
+      alert("Errore nella registrazione. Riprova");
     }
   };
 
   return (
+    <div className="login-container">
     <div className="container">
     <h1>REGISTRAZIONE</h1>
     <p>Crea il tuo account per usare SELFIE!</p>
@@ -36,7 +39,7 @@ const Register = () => {
     <form onSubmit={handleSubmit}>
       <input
         type="text"
-        name="name"
+        name="nome"
         placeholder="Nome"
         onChange={handleChange}
         required
@@ -45,7 +48,7 @@ const Register = () => {
       <label>Inserisci il tuo cognome:</label>
       <input
         type="text"
-        name="surname"
+        name="cognome"
         placeholder="Cognome"
         onChange={handleChange}
         required
@@ -85,12 +88,13 @@ const Register = () => {
         onChange={handleChange}
         required
       />
-      <button type="submit">Registrati</button>
+      <button className="form-button" type="submit">Registrati</button>
     </form>
 
     <p>
       Hai già un account? <Link to="/login">Accedi</Link>
     </p>
+  </div>
   </div>
 );
 };

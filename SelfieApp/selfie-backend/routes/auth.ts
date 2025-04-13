@@ -2,7 +2,8 @@ import User from "../models/user";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import express, { Router, Request, Response } from "express";
+import express from "express";
+import { Router, Request, Response } from "express";
 
 dotenv.config();
 
@@ -74,6 +75,36 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error("Errore nel login:", error);
     res.status(500).json({ message: "Errore interno del server" });
+  }
+});
+
+// Endpoint per ottenere i dati dell'utente loggato
+router.get("/me", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ message: "Token mancante o non valido" });
+      return;
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    // Verifica il token
+    const decoded: any = jwt.verify(token, jwtSecret);
+    const userId = decoded.id;
+
+    const user = await User.findById(userId).select("nome cognome username");
+
+    if (!user) {
+      res.status(404).json({ message: "Utente non trovato" });
+      return;    
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error("Errore nel recupero dell'utente:", error);
+    res.status(500).json({ message: "Errore del server" });
   }
 });
 

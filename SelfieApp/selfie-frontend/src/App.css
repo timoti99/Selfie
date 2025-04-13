@@ -12,7 +12,7 @@ body, html {
 }
 
 /* Contenitore centrale per le pagine */
-.container {
+.form-container {
   background-color: #1e1e1e;
   padding: 30px;
   border-radius: 10px;
@@ -23,7 +23,7 @@ body, html {
 }
 
 /* Stile degli input */
-input {
+.app-input {
   width: 100%;
   padding: 10px;
   margin: 8px 0;
@@ -34,7 +34,7 @@ input {
 }
 
 /* Stile del pulsante */
-button {
+.app-button {
   padding: 10px;
   background-color: red;
   border: none;
@@ -42,23 +42,20 @@ button {
   color: white;
   font-size: 16px;
   cursor: pointer;
-}
-
-.form-button {
   width: 100%;
 }
 
-button:hover {
+.app-button:hover {
   background-color: darkred;
 }
 
-/* Stile del link di registrazione */
-a {
+/* Stile del link */
+.app-link {
   color: red;
   text-decoration: none;
 }
 
-a:hover {
+.app-link:hover {
   text-decoration: underline;
 }
 
@@ -101,8 +98,7 @@ a:hover {
   }
 }
 
-/* -- stile Home page ---*/
-
+/* Home page */
 .home-container {
   display: flex;
   flex-direction: column;
@@ -113,7 +109,7 @@ a:hover {
 }
 
 .navbar-spacer {
-  width: 120px; /* stesso spazio del bottone a destra */
+  width: 120px;
 }
 
 .navbar {
@@ -138,6 +134,9 @@ a:hover {
   text-decoration: none;
 }
 
+.navbar-links a:hover {
+  text-decoration: underline;
+}
 
 .settings-button {
   background-color: red;
@@ -147,12 +146,6 @@ a:hover {
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
-}
-
-
-
-.navbar-links a:hover {
-  text-decoration: underline;
 }
 
 .home-content {
@@ -169,15 +162,102 @@ a:hover {
   margin-bottom: 20px;
 }
 
-.login-link a {
-  color: red;
+.login-link .app-link {
   font-weight: bold;
-  text-decoration: none;
   font-size: 16px;
 }
 
-.login-link a:hover {
-  text-decoration: underline;
-}
 
+/* side-menu nella home */
+.side-menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 250px;
+  background-color: #121212;
+  color: white;
+  padding: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-in-out;
+  }
+  
+  .side-menu.open {
+    transform: translateX(0);
+  }
+  
+  .side-menu .close-button {
+  all: unset;
+  font-size: 20px;
+  color: red;
+  align-self: flex-end;
+  cursor: pointer;
+  }
 
+  .side-menu .user-info {
+    margin-bottom: 20px;
+  }
+  
+  
+  .side-menu .user-info h3 {
+    margin: 0;
+    font-size: 20px;
+  }
+  
+  .side-menu .user-info .username {
+    margin-top: 5px;
+    font-size: 16px;
+    color: #ccc;
+  }
+  
+  .side-menu .middle-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; 
+    gap: 10px; 
+    margin-top: 40px; 
+  }
+  
+  .side-menu .menu-links {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .side-menu .menu-link {
+    font-size: 16px;
+    padding: 12px 20px;
+    color: white;
+    cursor: pointer;
+    text-align: left;
+    transition: color 0.3s;
+    border-bottom: 1px solid crimson;
+    background: transparent;
+  }
+  
+  .side-menu .menu-link:hover {
+    color: crimson;
+  }
+  
+  
+  .side-menu .logout-btn {
+    background-color: #8b1c1c;
+  padding: 10px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 14px;
+  align-self: center;
+  width: 100%;
+  margin-top: auto; 
+  margin-bottom: 20px; 
+  }
+  
+  .side-menu .logout-btn:hover {
+    background-color: #5e1313;
+  }

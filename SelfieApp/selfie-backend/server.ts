@@ -20,7 +20,7 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
-// Connessione a MongoDB (senza opzioni obsolete)
+// Connessione a MongoDB 
 mongoose.connect(MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => {
@@ -30,6 +30,8 @@ mongoose.connect(MONGO_URI)
 
   
 app.use("/api/auth", authRoutes);
+
+
 
 // Avvio del server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

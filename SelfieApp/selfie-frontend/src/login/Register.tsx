@@ -30,7 +30,7 @@ const Register = () => {
 
   return (
     <div className="login-container">
-    <div className="container">
+    <div className="form-container">
     <h1>REGISTRAZIONE</h1>
     <p>Crea il tuo account per usare SELFIE!</p>
 
@@ -38,6 +38,7 @@ const Register = () => {
     <label>Inserisci il tuo nome:</label>
     <form onSubmit={handleSubmit}>
       <input
+        className="app-input"
         type="text"
         name="nome"
         placeholder="Nome"
@@ -47,6 +48,7 @@ const Register = () => {
 
       <label>Inserisci il tuo cognome:</label>
       <input
+        className="app-input"
         type="text"
         name="cognome"
         placeholder="Cognome"
@@ -56,6 +58,7 @@ const Register = () => {
 
       <label>Crea il tuo username:</label>
       <input
+        className="app-input"
         type="text"
         name="username"
         placeholder="Username"
@@ -65,6 +68,7 @@ const Register = () => {
 
       <label>Inserisci la tua Email:</label>
       <input
+        className="app-input"
         type="email"
         name="email"
         placeholder="Email"
@@ -74,6 +78,7 @@ const Register = () => {
 
       <label>Crea la tua password:</label>
       <input
+        className="app-input"
         type="password"
         name="password"
         placeholder="Password"
@@ -83,16 +88,17 @@ const Register = () => {
 
       <label>Inserisci la tua data di nascita:</label>
       <input
+        className="app-input"
         type="date"
         name="dataNascita"
         onChange={handleChange}
         required
       />
-      <button className="form-button" type="submit">Registrati</button>
+      <button className="app-button" type="submit">Registrati</button>
     </form>
 
     <p>
-      Hai già un account? <Link to="/login">Accedi</Link>
+      Hai già un account? <Link className="app-link" to="/login">Accedi</Link>
     </p>
   </div>
   </div>

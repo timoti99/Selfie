@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Login from "./login/Login";
 import Register from "./login/Register";
 import Home from "./home/home";
+import Profilo from "./home/Profilo";
 import "./App.css"
 
 
@@ -12,6 +13,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} />
+      <Route path="/profilo" element={<Profilo />} />
       {/* Aggiungi una rotta di fallback se necessario */}
       <Route path="*" element={<Login />} />
       </Routes>

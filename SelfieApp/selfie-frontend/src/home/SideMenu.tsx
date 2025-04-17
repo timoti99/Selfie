@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "../App.css";
 
 
@@ -30,8 +31,8 @@ interface SideMenuProps {
   
         <div className="middle-section">
         <div className="menu-links">
-        <div className="menu-link">Profilo</div>
-        <div className="menu-link">Account</div>
+        <Link className="menu-link" to="/profilo" onClick={onClose}>Profilo</Link>
+        <div className="menu-link" >Account</div>
       </div>
       </div>
   

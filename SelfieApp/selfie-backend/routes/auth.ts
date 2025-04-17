@@ -94,7 +94,7 @@ router.get("/me", async (req: Request, res: Response): Promise<void> => {
     const decoded: any = jwt.verify(token, jwtSecret);
     const userId = decoded.id;
 
-    const user = await User.findById(userId).select("nome cognome username");
+    const user = await User.findById(userId).select("nome cognome username email dataNascita");
 
     if (!user) {
       res.status(404).json({ message: "Utente non trovato" });
@@ -104,6 +104,31 @@ router.get("/me", async (req: Request, res: Response): Promise<void> => {
     res.json(user);
   } catch (error) {
     console.error("Errore nel recupero dell'utente:", error);
+    res.status(500).json({ message: "Errore del server" });
+  }
+});
+
+router.put("/update", async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ message: "Token mancante o non valido" });
+      return;
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded: any = jwt.verify(token, jwtSecret);
+    const userId = decoded.id;
+
+    const { username, nome, cognome, dataNascita, email } = req.body;
+
+    await User.findByIdAndUpdate(userId, {
+      username, nome, cognome, dataNascita, email
+    });
+
+    res.json({ message: "Dati aggiornati con successo" });
+  } catch (error) {
+    console.error("Errore nell'aggiornamento dell'utente:", error);
     res.status(500).json({ message: "Errore del server" });
   }
 });

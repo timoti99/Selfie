@@ -68,7 +68,7 @@ export default function Profilo() {
         <div className="profilo-container">
             <nav className="profilo-nav">
                 <button className="tab active">Profile</button>
-                <button className="tab">Account</button>
+                <button className="tab"onClick={() => navigate("/account")}>Account</button>
                 <button className="tab" onClick={() => navigate("/home")}>Home</button>
             </nav>
 
@@ -92,7 +92,7 @@ export default function Profilo() {
                 <label>Date of Birth</label>
                 <input type="date" value={dataNascita} onChange={e => setDataNascita(e.target.value)} />
 
-                <button className="save-btn" onClick={handleSave}>Save Changes</button>
+                <button className="save-btn" onClick={handleSave}>Salva Cambiamenti</button>
             </div>
         </div>
     );

@@ -107,7 +107,7 @@ router.get("/me", async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ message: "Errore del server" });
   }
 });
-
+//route per aggiornare i dati personali
 router.put("/update", async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
@@ -130,6 +130,29 @@ router.put("/update", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Errore nell'aggiornamento dell'utente:", error);
     res.status(500).json({ message: "Errore del server" });
+  }
+});
+
+//route per cambiare la password
+router.put('/change-password', async (req, res): Promise<void> => {
+  const { userId, currentPassword, newPassword } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) { res.status(404).json({ message: 'Utente non trovato' });
+  return;
+  }
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) { res.status(400).json({ message: 'Password attuale errata' });
+  return;  
+  }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Password aggiornata con successo' });
+  } catch (err) {
+    res.status(500).json({ message: 'Errore del server', error: err });
   }
 });
 

@@ -32,7 +32,7 @@ interface SideMenuProps {
         <div className="middle-section">
         <div className="menu-links">
         <Link className="menu-link" to="/profilo" onClick={onClose}>Profilo</Link>
-        <div className="menu-link" >Account</div>
+        <Link className="menu-link" to="/account" >Account</Link>
       </div>
       </div>
   

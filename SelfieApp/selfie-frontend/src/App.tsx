@@ -4,6 +4,7 @@ import Register from "./login/Register";
 import Home from "./home/home";
 import Profilo from "./home/Profilo";
 import "./App.css"
+import Account from "./home/Account";
 
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} />
       <Route path="/profilo" element={<Profilo />} />
+      <Route path="/account" element={<Account  />} />
       {/* Aggiungi una rotta di fallback se necessario */}
       <Route path="*" element={<Login />} />
       </Routes>

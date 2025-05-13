@@ -1,7 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import "../App.css";
 
 
 
@@ -24,7 +23,7 @@ const Register = () => {
     try {
       await axios.post("http://localhost:3000/api/auth/register", formData);
       alert("Registrazione completata! Ora puoi effettuare il login.");
-    } catch {
+    } catch (err) {
       alert("Errore nella registrazione. Riprova");
     }
   };

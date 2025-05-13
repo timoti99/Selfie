@@ -3,24 +3,23 @@ import Login from "./login/Login";
 import Register from "./login/Register";
 import Home from "./home/home";
 import Profilo from "./home/Profilo";
-import "./App.css"
+import CalendarPage from "./home/CalendarPage";
 import Account from "./home/Account";
-
+import "./App.css";
 
 function App() {
   return (
     <Router>
       <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/home" element={<Home />} />
-      <Route path="/profilo" element={<Profilo />} />
-      <Route path="/account" element={<Account  />} />
-      {/* Aggiungi una rotta di fallback se necessario */}
-      <Route path="*" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/profilo" element={<Profilo />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="*" element={<Login />} />
       </Routes>
     </Router>
-    
   );
 }
 

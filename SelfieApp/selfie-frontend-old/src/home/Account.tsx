@@ -5,7 +5,7 @@ import axios from 'axios';
 
 export default function Account() {
   const navigate = useNavigate();
-  const [, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string>("");
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -51,10 +51,8 @@ export default function Account() {
         newPassword
       });
       setMessage(res.data.message);
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)){
+    } catch (err: any) {
       setMessage(err.response?.data?.message || "Errore");
-      }
     }
   };
 

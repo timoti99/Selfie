@@ -1,4 +1,5 @@
 import User from "../models/user";
+import Evento from "../models/evento"
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -153,6 +154,75 @@ router.put('/change-password', async (req, res): Promise<void> => {
     res.status(200).json({ message: 'Password aggiornata con successo' });
   } catch (err) {
     res.status(500).json({ message: 'Errore del server', error: err });
+  }
+});
+
+//route per salvare un nuovo evento
+router.post("/eventi", async function(req: Request, res: Response): Promise<void> {
+  try{
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")){
+       res.status(401).json({message: "Token mancante o non valido"});
+       return;
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded: any = jwt.verify(token, jwtSecret);
+    const userId = decoded.id;
+
+    const {
+  title,
+  start,
+  durationMinutes = 60,
+  location = '',
+  allDay = false,
+  isRecurring = false,
+  recurrence = {}
+  } = req.body;
+
+    const nuovoEvento = new Evento({
+      userId,
+      title,
+      start,
+      durationMinutes,
+      location,
+      allDay,
+      isRecurring,
+      ...(isRecurring && {
+        recurrence: {
+      frequency: recurrence.frequency || 'daily',
+      daysOfWeek: recurrence.daysOfWeek || [],
+      repeatUntil: recurrence.repeatUntil || null,
+      repeatCount: recurrence.repeatCount || null
+    }
+      })
+    });
+
+    await nuovoEvento.save();
+    res.status(201).json({message: "Evento salvato con successo", evento: nuovoEvento});
+  } catch (error) {
+    console.error("Errore nel salvataggio dell'evento:", error);
+    res.status(500).json({message: "Errore del server"});
+  }
+});
+
+//route per recuperare gli eventi salvati
+router.get("/eventi", async function(req: Request, res: Response): Promise<void> {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+     res.status(401).json({message: "Token mancante o non valido"});
+     return;
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded: any = jwt.verify(token, jwtSecret);
+    const userId = decoded.id;
+
+    const eventiUtente = await Evento.find({ userId });
+    res.status(200).json(eventiUtente);
+  } catch (error) {
+    console.error("Errore nel recupero degli eventi: ", error);
+    res.status(500).json({message: "Errore del server"});
   }
 });
 

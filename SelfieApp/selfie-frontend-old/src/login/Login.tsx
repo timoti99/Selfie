@@ -1,7 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import "../App.css";
 
 const Login = () => {
   const [formData, setFormData] = useState({ username: "", password: "" });
@@ -17,20 +16,18 @@ const Login = () => {
     try {
       const res = await axios.post("http://localhost:3000/api/auth/login", formData);
 
-      // Salva il token JWT nel localStorage
       localStorage.setItem("token", res.data.token);
 
       alert(`Benvenuto ${res.data.user.username}`);
 
-      // Vai alla home
       navigate("/home");
-    } catch  {
+    } catch (err) {
       alert("Credenziali errate. Riprova");
     }
   };
 
   return (
-    <div className="login-container">
+    <div className="page-wrapper login-container">
       <div className="form-container">
         <h1>LOGIN</h1>
         <p>Accedi per organizzare la tua vita con SELFIE!</p>
@@ -38,6 +35,7 @@ const Login = () => {
         <form onSubmit={handleSubmit}>
           <label>Inserisci il tuo Username:</label>
           <input
+            className="app-input"
             type="text"
             name="username"
             placeholder="Inserisci username"
@@ -47,6 +45,7 @@ const Login = () => {
 
           <label>Inserisci la tua password:</label>
           <input
+            className="app-input"
             type="password"
             name="password"
             placeholder="Inserisci password"
@@ -58,7 +57,7 @@ const Login = () => {
         </form>
 
         <p>
-          Non hai un account? <Link to="/register">Registrati</Link>
+          Non hai un account? <Link className="app-link" to="/register">Registrati</Link>
         </p>
       </div>
     </div>

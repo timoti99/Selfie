@@ -12,8 +12,10 @@ const EventoSchema = new mongoose.Schema({
   title: { type: String, required: true },
   location: { type: String },
   start: { type: Date, required: true },
+  end: { type: Date },
   durationMinutes: { type: Number },
   allDay: { type: Boolean, default: false },
+
   isRecurring: { type: Boolean, default: false },
   recurrence: {
     type: RecurrenceSchema,
@@ -21,7 +23,10 @@ const EventoSchema = new mongoose.Schema({
       return this.isRecurring;
     },
     default: undefined  
-  }
+  },
+  recurrenceId: {type: String},
+
+  overridesOriginalId: { type: mongoose.Schema.Types.ObjectId, ref: "Evento", default: null }
 });
 
 export default mongoose.model("Evento", EventoSchema);

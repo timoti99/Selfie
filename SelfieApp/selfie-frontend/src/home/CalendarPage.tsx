@@ -1,26 +1,34 @@
-import React, {useState, useEffect} from "react";
+import React, {useState, useEffect, useCallback} from "react";
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import {DateClickArg} from '@fullcalendar/interaction';
 import {EventInput} from '@fullcalendar/core';
-import { EventApi } from '@fullcalendar/core';
+import { EventClickArg } from '@fullcalendar/core';
+
 import Modal from 'react-modal';
 import Navbar from "./Navbar";
 import axios from "axios";
 import '../App.css';
 
+const API = "http://localhost:3000/api/auth";
+
 Modal.setAppElement('#root');
 
-   interface EventFromServer {
+interface EventFromServer {
+  _id: string;
   title: string;
   start: string;
   end: string;
-  allDay: boolean;
+  allDay?: boolean;
   location?: string;
   durationMinutes?: number;
-} 
+  isRecurring?: boolean;
+  overridesOriginalId?: string;
+  recurrenceId?: string;
+  seriesParentId?: string;
+}
 
 interface NewEvent {
   title: string;
@@ -38,7 +46,7 @@ interface NewEvent {
 }
 
 interface SelectedEvent {
-  id: string;
+  id: string | null;
   title: string;
   start: string | Date;
   end: string | Date;
@@ -51,7 +59,10 @@ interface SelectedEvent {
     frequency: 'daily' | 'weekly' | 'monthly';
     repeatUntil?: string | Date;
   };
+  parentId?: string | null;
+  extendedProps?: Record<string, unknown>;
 }
+
 
 const CalendarPage: React.FC = () => {
     const [events, setEvents] = useState<EventInput[]>([]);
@@ -59,6 +70,7 @@ const CalendarPage: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
     const [showEditBox, setShowEditBox] = useState(false);
+    const [editMode, setEditMode] = useState<'single' | 'all'>('single');
 
     const [newEvent, setNewEvent] = useState<NewEvent>({
     title: '',
@@ -75,31 +87,46 @@ const CalendarPage: React.FC = () => {
     }
     });
 
+  
+
     const token = localStorage.getItem("token");
 
+    const fetchEvents = useCallback(async () => {
+  if (!token) return;
+  try {
+    const res = await axios.get(`${API}/eventi`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const serverEvents: EventFromServer[] = res.data;
+
+    setEvents(
+      serverEvents.map((ev) => ({
+        id: String(ev._id),
+        title: ev.title,
+        start: ev.start,
+        end: ev.end,
+        allDay: !!ev.allDay,
+        extendedProps: {
+          location: ev.location,
+          durationMinutes: ev.durationMinutes,
+          isRecurring: ev.isRecurring,
+          overridesOriginalId: ev.overridesOriginalId,
+          recurrenceId: ev.recurrenceId,
+          // parent/series id
+          seriesParentId: ev.seriesParentId ?? ev.overridesOriginalId ?? null,
+        },
+        className: ev.isRecurring ? "recurring-event" : "single-event"
+      }))
+    );
+  } catch (err) {
+    console.error("Errore nel fetch degli eventi:", err);
+  }
+}, [token]);
+
     useEffect(() => {
-       if (token) {
-      axios.get("http://localhost:3000/api/auth/eventi", {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then((res) => {
-        console.log("Eventi ricevuti dal backend:", res.data);
-         
-        setEvents(res.data.map((ev: EventFromServer & {_id: string}) => ({
-    id: ev._id,
-    title: ev.title,
-    start: new Date(ev.start),
-    end: new Date(ev.end),
-    allDay: ev.allDay,
-    extendedProps: {
-      location: ev.location,
-      durationMinutes: ev.durationMinutes,
-          }
-        })));
-      })
-      .catch((err) => console.error("Errore nel caricamento eventi:", err));
-    }
-  }, [token]);
+    fetchEvents();
+  }, [fetchEvents]);
 
     const handleDateClick = (arg: DateClickArg) => {
        setSelectedDate(arg.dateStr);
@@ -108,171 +135,255 @@ const CalendarPage: React.FC = () => {
     };
 
 
-    const handleAddEvent = () => {
-    if (!newEvent.title || !newEvent.start) {
-    alert("Inserisci almeno un titolo e una data per l'evento.");
+   const handleAddEvent = async () => {
+  if (!newEvent.title || !newEvent.start) { alert("Titolo e data obbligatori"); return; }
+
+  const startDate = new Date(newEvent.start);
+  let endDate = newEvent.end ? new Date(newEvent.end) : new Date(startDate.getTime() + 30*60000);
+
+  if (newEvent.allDay) {
+    startDate.setHours(0,0,0,0);
+    endDate = new Date(startDate);
+    endDate.setHours(23,59,59,999);
+  }
+
+  const recurrenceId = crypto?.randomUUID?.() || Math.random().toString(36).slice(2,10);
+
+  if (newEvent.isRecurring && newEvent.recurrence?.frequency && newEvent.recurrence?.repeatUntil) {
+    const payload = {
+      title: newEvent.title,
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      allDay: newEvent.allDay,
+      location: newEvent.location,
+      isRecurring: true,
+      recurrence: {
+        frequency: newEvent.recurrence.frequency,
+        repeatUntil: new Date(newEvent.recurrence.repeatUntil).toISOString()
+      },
+      recurrenceId
+    };
+
+    try {
+      await axios.post(`${API}/eventi`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchEvents();
+      setShowEventBox(false);
+    } catch (err) {
+      console.error(err);
+    }
     return;
   }
 
-  if (newEvent.isRecurring && !newEvent.recurrence.repeatUntil) {
-    alert("Seleziona una data di fine per la ripetizione dell’evento.");
-  return;
-  }
-
-   const frequency = newEvent.recurrence?.frequency;
-
-   let repeatUntil: Date | undefined = undefined;
-   if (newEvent.recurrence?.repeatUntil) {
-    const parsedDate = new Date(newEvent.recurrence.repeatUntil);
-    if (!isNaN(parsedDate.getTime())) {
-      repeatUntil = parsedDate;
-    }
-   }
-
-  const startDate = new Date(newEvent.start);
-  const endDate = newEvent.end ? new Date(newEvent.end) : null;
-  const duration = endDate ? endDate.getTime() - startDate.getTime() : 30 * 60000;
-
-  const recurrenceId = typeof window !== "undefined" && window.crypto?.randomUUID
-  ? window.crypto.randomUUID()
-  : Math.random().toString(36).substring(2, 10); // fallback
-  const eventsToAdd: EventInput[] = [];
-
-  const addOccurrence = (date: Date) => {
-    const eventStart = new Date(date);
-    const eventEnd = new Date(eventStart.getTime() + duration);
-
-    eventsToAdd.push({
-      title: newEvent.title,
-      start: eventStart.toISOString(),
-      end: eventEnd.toISOString(),
-      allDay: newEvent.allDay || false,
-      extendedProps: {
-        location: newEvent.location,
-        durationMinutes: duration / 60000,
-        recurrenceId
-      }
-    });
-  };
-
-  const currentDate = new Date(startDate);
-
-  if (!frequency || !repeatUntil) {
-    // Nessuna ricorrenza, singolo evento
-    addOccurrence(currentDate);
-  } else {
-    while (currentDate <= repeatUntil) {
-      addOccurrence(currentDate);
-
-      // Aggiungi la prossima ricorrenza
-      if (frequency === "daily") currentDate.setDate(currentDate.getDate() + 1);
-      else if (frequency === "weekly") currentDate.setDate(currentDate.getDate() + 7);
-      else if (frequency === "monthly") currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-  }
-
-  // Salva su backend se presente il token
-  if (token) {
-   console.log("Eventi da salvare:", eventsToAdd);
-  
-  Promise.all(eventsToAdd.map(event =>
-  axios.post("http://localhost:3000/api/auth/eventi", event, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-))
-.then(() => {
-  setEvents([...events, ...eventsToAdd]);
-  setShowEventBox(false);
-})
-.catch(err => console.error("Errore nel salvataggio degli eventi:", err));
-  }  
-  };
-
-  const handleEventClick = (event: EventApi) => {
-    const title = event.title;
-  const start = event.start ?? new Date();
-  const end = event.end ?? new Date(start.getTime() + 60 * 60000);
-  const location = event.extendedProps?.location || '';
-  const recurrenceId = event.extendedProps?.recurrenceId || null;
-  const overridesOriginalId = event.extendedProps?.overridesOriginalId || null;
-
-  setSelectedEvent({
-    id: event.id,
-    title,
-    start,
-    end,
-    location,
-    recurrenceId,
-    allDay: event.allDay,
-    isRecurring: !!recurrenceId,
-    recurrence: undefined,
-    overridesOriginalId,
-  });
-  setShowEditBox(true);
-  };
-
-  const handleEditEvent = async (mode: 'single' | 'all' = 'single') => {
-  if (!selectedEvent) return;
-
-  const isOverride = mode === 'single' && selectedEvent.recurrenceId;
-
-  const updatePayload = {
-    id: isOverride ? undefined : selectedEvent.id, // se override, nuovo evento (no id)
-    title: selectedEvent.title,
-    start: selectedEvent.start,
-    end: selectedEvent.end,
-    location: selectedEvent.location,
-    allDay: selectedEvent.allDay || false,
-    recurrenceId: mode === 'all' ? selectedEvent.recurrenceId : undefined,
-    overridesOriginalId: isOverride ? selectedEvent.id : undefined,
+  // Evento singolo
+  const singlePayload = {
+    title: newEvent.title,
+  start: startDate.toISOString(),
+  end: endDate.toISOString(),
+  allDay: newEvent.allDay,
+  location: newEvent.location,
+  isRecurring: false
   };
 
   try {
-    await axios.put("http://localhost:3000/api/auth/eventi", updatePayload, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await axios.post(`${API}/eventi`, singlePayload, {
+      headers: { Authorization: `Bearer ${token}` }
     });
+
+    const saved = res.data;
+  const mapped = {
+    id: String(saved._id),
+    title: saved.title,
+    start: new Date(saved.start),
+    end: saved.end ? new Date(saved.end) : undefined,
+    allDay: !!saved.allDay,
+    extendedProps: {
+      location: saved.location || "",
+      durationMinutes: saved.durationMinutes || 60,
+      isRecurring: !!saved.isRecurring,
+      recurrenceId: saved.recurrenceId ?? null,
+      overridesOriginalId: saved.overridesOriginalId ?? null,
+      isCancelled: !!saved.isCancelled
+    }
+  };
+
+    setEvents(prev => [...prev, mapped]);
+    setShowEventBox(false);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+  const handleEventClick = (info: EventClickArg) => {
+    const e = info.event;
+
+  setSelectedEvent({
+    id: e.id ?? e.extendedProps?._id ?? null,
+    title: e.title,
+    start: e.start?.toISOString() || "",
+    end: e.end?.toISOString() || "",
+    location: e.extendedProps?.location || "",
+    allDay: e.allDay,
+    recurrenceId: e.extendedProps?.recurrenceId || null,
+    overridesOriginalId: e.extendedProps?.overridesOriginalId || null,
+    isRecurring: !!e.extendedProps?.isRecurring,
+    recurrence: e.extendedProps?.recurrence || undefined,
+    extendedProps: e.extendedProps
+  });
+
+  if (e.extendedProps?.isRecurring && e.extendedProps?.recurrenceId) {
+    // Evento ricorrente 
+    setEditMode("single");
+    
+  } else {
+    // Evento singolo
+    setShowEditBox(true);
+  }
+};
+
+ const handleEditEvent = async (mode: 'single' | 'all' = 'single') => {
+   if (!selectedEvent) return;
+
+  const startDate = new Date(selectedEvent.start);
+  const endDate = new Date(selectedEvent.end);
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    alert("Errore: data di inizio o fine non valida.");
+    return;
+  }
+
+  
+  try {
+    if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
+      // modifica solo una occorrenza (override)
+     const payload = {
+    id: selectedEvent.id, // se è un override, esiste un ID specifico
+    title: selectedEvent.title,
+    start: startDate.toISOString(),
+    end: endDate.toISOString(),
+    location: selectedEvent.location || "",
+    allDay: selectedEvent.allDay
+  };
+
+  await axios.put(`${API}/eventi`, payload, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  } 
+   else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
+  const newStartTime = new Date(selectedEvent.start);
+  const newEndTime = new Date(selectedEvent.end);
+
+  await axios.put(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`, {
+    updateData: {
+      title: selectedEvent.title,
+      location: selectedEvent.location || "",
+      allDay: selectedEvent.allDay || false,
+      startTime: {
+        hours: newStartTime.getHours(),
+        minutes: newStartTime.getMinutes(),
+      },
+      endTime: {
+        hours: newEndTime.getHours(),
+        minutes: newEndTime.getMinutes(),
+      }
+    }
+  }, { headers: { Authorization: `Bearer ${token}` } });
+} else if (selectedEvent.id && !selectedEvent.extendedProps?.recurrenceId) {
+     await axios.put(
+        `http://localhost:3000/api/auth/eventi`,
+        {
+          id: selectedEvent.id,
+      title: selectedEvent.title,
+      start: startDate.toISOString(),
+      end: endDate.toISOString(),
+      location: selectedEvent.location || "",
+      allDay: selectedEvent.allDay || false,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    
+    // aggiorna subito la lista (senza reload)
+   
+    }
+
+    await fetchEvents();
 
     alert("Evento modificato con successo!");
     setSelectedEvent(null);
     setShowEditBox(false);
-    window.location.reload();
+    setEditMode('single');
   } catch (err) {
-    console.error("Errore durante la modifica dell'evento", err);
-    alert("Si è verificato un errore durante la modifica dell'evento");
+    console.error("Errore durante la modifica:", err);
+    alert("Errore durante la modifica");
   }
 };
 
-  const handleDeleteEvent = (mode = 'single') => {
-    if (!selectedEvent) return;
+  const handleDeleteEvent = async (mode: 'single' | 'all') => {
+  if (!selectedEvent) return;
 
-    //Se mode è 'all' uso recurrenceId   
-    const idOrRecurrence = 
-    mode === 'all' && selectedEvent.recurrenceId
-    ? {recurrenceId: selectedEvent.recurrenceId }
-    : {start: selectedEvent.start, title: selectedEvent.title};
+  try {
+   if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
+  await axios.delete(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}/occurrence`,
+    {
+      params: {  date: new Date(selectedEvent.start).toISOString() },
+      headers: { Authorization: `Bearer ${token}` }
+    }
+  );
 
-    axios
-    .delete(`http://localhost:3000/api/auth/eventi/${selectedEvent.id}`, {
-      headers: {Authorization: `Bearer ${token}`},
-      data: idOrRecurrence,
-    })
-    .then(() => {
-      alert("Evento eliminato!");
-      setShowEditBox(false);
-      window.location.reload();
-    })
-    .catch((err) => console.error("Errore eliminazione evento", err));
-  };
+    } else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
+      // elimina tutta la serie
+      await axios.delete(
+        `${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    
+    }  else if (selectedEvent.id) {
+      // elimina evento singolo
+      await axios.delete(
+        `${API}/eventi/${selectedEvent.id}`,
+        { 
+          headers: { Authorization: `Bearer ${token}` } 
+      });
+    }
 
-  function chiudiModificaEvento() {
-  setShowEditBox(false);
-  setSelectedEvent(null);
-}
+    // aggiorna subito la lista (senza reload)
+    await fetchEvents();
+
+    alert("Evento eliminato con successo!");
+    setSelectedEvent(null);
+    setShowEditBox(false);
+    setEditMode('single');
+  } catch (err) {
+    console.error("Errore durante l'eliminazione:", err);
+    alert("Errore durante l'eliminazione");
+  }
+};
 
 
   return (
     <div className="calendar-page-container">
   <Navbar />
+<div style={{ marginTop: "20px", textAlign: "center" }}>
+  <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "5px", color: "white" }}>
+    Benvenuto nel tuo calendario personale
+  </h2>
+  <p style={{ fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)", margin: "3px 0" }}>
+    Clicca su una data per creare un nuovo evento
+  </p>
+  <p style={{ fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)", margin: "7px 0" }}>
+    Oppure clicca su un evento già esistente per modificarlo o eliminarlo
+  </p>
+   <p style={{fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)"}}>
+  Legenda:
+</p>
+ <p style={{fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)" }}>
+  🔵Evento con orario specifico
+</p>
+<p style={{ fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)" }}>
+  🟥Evento ricorrente
+</p>
+</div>
 
   <div className="calendar-container">
     <FullCalendar
@@ -283,10 +394,11 @@ const CalendarPage: React.FC = () => {
         right: 'dayGridMonth,timeGridWeek,timeGridDay',
       }}
       initialView="dayGridMonth"
+      timeZone="local"
       events={events}
       dateClick={handleDateClick}
       height="auto"
-      eventClick={(info) => handleEventClick(info.event)}
+      eventClick={(info) => handleEventClick(info)}
     />
      {(showEventBox || selectedEvent) && (<div className="overlay-background"
      onClick={() => {
@@ -310,18 +422,37 @@ const CalendarPage: React.FC = () => {
           value={newEvent.title}
           onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
         />
-        <input
-          type="datetime-local"
-          className="input-field"
-          value={newEvent.start}
-          onChange={(e) => setNewEvent({ ...newEvent, start: e.target.value })}
-        />
-        <input
-          type="datetime-local"
-          className="input-field"
-          value={newEvent.end}
-          onChange={(e) => setNewEvent({ ...newEvent, end: e.target.value })}
-        />
+       <input
+  type="datetime-local"
+  className="input-field"
+  value={
+    newEvent.start
+      ? new Date(new Date(newEvent.start).getTime() - new Date(newEvent.start).getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 16)
+      : ""
+  }
+  onChange={(e) => {
+    const date = new Date(e.target.value);
+    setNewEvent((prev) => ({ ...prev, start: date.toISOString() })); // ✅ niente offset qui
+  }}
+/>
+
+<input
+  type="datetime-local"
+  className="input-field"
+  value={
+    newEvent.end
+      ? new Date(new Date(newEvent.end).getTime() - new Date(newEvent.end).getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 16)
+      : ""
+  }
+  onChange={(e) => {
+    const date = new Date(e.target.value);
+    setNewEvent((prev) => ({ ...prev, end: date.toISOString() })); // ✅ niente offset qui
+  }}
+/>
         <input
           type="text"
           className="input-field"
@@ -406,129 +537,361 @@ const CalendarPage: React.FC = () => {
     </div>
   )}
 
-{showEditBox && selectedEvent && (
-      <div className="event-details-wrapper">
-        <button className="event-close-button" onClick={chiudiModificaEvento}>×</button>
-        <h2 className="form-title">Modifica o elimina evento</h2>
-        <div className="event-form-card">
-          <label>
-            Titolo:
-            <input
-              className="input-field"
-              type="text"
-              value={selectedEvent.title}
-              onChange={(e) =>
-                setSelectedEvent((prev) =>
-                  prev ? { ...prev, title: e.target.value } : null
-                )
-              }
-            />
-          </label>
+{selectedEvent && !selectedEvent.isRecurring && showEditBox && (
+  <div className="event-details-wrapper">
+    <button
+      className="event-close-button"
+      onClick={() => {
+        setSelectedEvent(null);
+        setShowEditBox(false);
+      }}
+    >
+      ×
+    </button>
+    <h2 className="form-title">Modifica o elimina evento</h2>
+    <div className="event-form-card">
+      <label>
+        Titolo:
+        <input
+          className="input-field"
+          type="text"
+          value={selectedEvent.title}
+          onChange={(e) =>
+            setSelectedEvent((prev) =>
+              prev ? { ...prev, title: e.target.value } : null
+            )
+          }
+        />
+      </label>
 
-          <label>
-            Inizio:
-            <input
-              className="input-field"
-              type="datetime-local"
-              value={new Date(selectedEvent.start).toISOString().slice(0, 16)}
-              onChange={(e) =>
-                setSelectedEvent((prev) =>
-                  prev ? { ...prev, start: new Date(e.target.value) } : null
-                )
-              }
-            />
-          </label>
-
-          <label>
-            Fine:
-            <input
-              className="input-field"
-              type="datetime-local"
-              value={new Date(selectedEvent.end).toISOString().slice(0, 16)}
-              onChange={(e) =>
-                setSelectedEvent((prev) =>
-                  prev ? { ...prev, end: new Date(e.target.value) } : null
-                )
-              }
-            />
-          </label>
-
-          <label>
-            Luogo:
-            <input
-              className="input-field"
-              type="text"
-              value={selectedEvent.location || ''}
-              onChange={(e) =>
-                setSelectedEvent((prev) =>
-                  prev ? { ...prev, location: e.target.value } : null
-                )
-              }
-            />
-          </label>
-
-          <label className="checkbox-label">
-  <input
-    type="checkbox"
-    checked={selectedEvent.allDay || false}
+      <label>
+        Inizio:
+        <input
+          className="input-field"
+          type="datetime-local"
+          value={
+      selectedEvent.start
+        ? new Date(
+            new Date(selectedEvent.start).getTime() -
+              new Date(selectedEvent.start).getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(0, 16)
+        : ""
+    }
     onChange={(e) =>
       setSelectedEvent((prev) =>
-        prev ? { ...prev, allDay: e.target.checked } : null
+        prev ? { ...prev, start: new Date(e.target.value).toISOString() } : prev
+      )
+    }
+        />
+      </label>
+
+      <label>
+        Fine:
+        <input
+          className="input-field"
+          type="datetime-local"
+          value={
+      selectedEvent.end
+        ? new Date(
+            new Date(selectedEvent.end).getTime() -
+              new Date(selectedEvent.end).getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(0, 16)
+        : ""
+    }
+    onChange={(e) =>
+      setSelectedEvent((prev) =>
+        prev ? { ...prev, end: new Date(e.target.value).toISOString() } : prev
       )
     }
   />
-  Evento per tutta la giornata
-</label>
+      </label>
 
-        <div className="event-actions">
-  <button className="event-btn edit-btn" onClick={() => handleEditEvent('single')}>
-    Modifica occorrenza
-  </button>
-  {selectedEvent.recurrenceId && (
-    <button className="event-btn edit-btn" onClick={() => handleEditEvent('all')}>
-      Modifica tutta la serie
-    </button>
-  )}
-  <button className="event-btn delete-btn" onClick={() => handleDeleteEvent('single')}>
-    Elimina occorrenza
-  </button>
-  {selectedEvent.recurrenceId && (
-    <button className="event-btn delete-btn" onClick={() => handleDeleteEvent('all')}>
-      Elimina tutta la serie
-    </button>
-  )}
-  <button
-    className="event-btn"
-    onClick={() => {
-      setShowEditBox(false);
-      setSelectedEvent(null);
-    }}
-  >
-    Annulla
-  </button>
-</div> 
-        </div>
+      <label>
+        Luogo:
+        <input
+          className="input-field"
+          type="text"
+          value={selectedEvent.location || ""}
+          onChange={(e) =>
+            setSelectedEvent((prev) =>
+              prev ? { ...prev, location: e.target.value } : null
+            )
+          }
+        />
+      </label>
+
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={selectedEvent.allDay || false}
+          onChange={(e) =>
+            setSelectedEvent((prev) =>
+              prev ? { ...prev, allDay: e.target.checked } : null
+            )
+          }
+        />
+        Evento per tutta la giornata
+      </label>
+
+      <div className="event-actions">
+        <button
+          className="event-btn edit-btn"
+          onClick={() => handleEditEvent("single")}
+        >
+          Modifica
+        </button>
+        <button
+          className="event-btn delete-btn"
+          onClick={() => handleDeleteEvent("single")}
+        >
+          Elimina
+        </button>
+        <button
+          className="event-btn"
+          onClick={() => {
+            setSelectedEvent(null);
+            setShowEditBox(false);
+          }}
+        >
+          Annulla
+        </button>
       </div>
-    )}
-
-  { selectedEvent && selectedEvent.isRecurring && (
-  <div className="ricorrenza-elimina-opzioni">
-    <p>L'evento è ricorrente. Cosa vuoi eliminare?</p>
-    <button
-      className="event-btn delete-btn"
-      onClick={() => handleDeleteEvent('single')}
-    >
-      Solo questo evento
-    </button>
-    <button
-      className="event-btn delete-btn"
-      onClick={() => handleDeleteEvent('all')}
-    >
-      Tutta la serie
-    </button>
+    </div>
   </div>
 )}
+
+{/* Box EVENTO RICORRENTE */}
+{selectedEvent && selectedEvent.isRecurring && (
+  <div className="event-details-wrapper">
+    <button
+      className="event-close-button"
+      onClick={() => {
+        setSelectedEvent(null);
+        setEditMode("single");
+      }}
+    >
+      ×
+    </button>
+    <h2 className="form-title">Modifica evento ricorrente</h2>
+    <div className="event-form-card">
+      {/* Titolo */}
+      <label>
+        Titolo:
+        <input
+          className="input-field"
+          type="text"
+          value={selectedEvent.title}
+          onChange={(e) =>
+            setSelectedEvent((prev) =>
+              prev ? { ...prev, title: e.target.value } : null
+            )
+          }
+        />
+      </label>
+
+      {editMode === "all" ? (
+        <>
+          {/* Solo orari */}
+          <label>
+  Orario inizio:
+  <input
+    className="input-field"
+    type="time"
+    value={
+      selectedEvent.start && !isNaN(new Date(selectedEvent.start).getTime())
+        ? new Date(
+            new Date(selectedEvent.start).getTime() -
+              new Date(selectedEvent.start).getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(11, 16)
+        : ""
+    }
+    onChange={(e) =>
+      setSelectedEvent((prev) => {
+        if (!prev) return null;
+
+        const baseDate = !isNaN(new Date(prev.start).getTime())
+          ? new Date(prev.start)
+          : new Date();
+
+        baseDate.setHours(
+          parseInt(e.target.value.split(":")[0]),
+          parseInt(e.target.value.split(":")[1]),
+          0,
+          0
+        );
+
+        return { ...prev, start: baseDate.toISOString() };
+      })
+    }
+  />
+</label>
+
+<label>
+  Orario fine:
+  <input
+    className="input-field"
+    type="time"
+    value={
+      selectedEvent.end && !isNaN(new Date(selectedEvent.end).getTime())
+        ? new Date(
+            new Date(selectedEvent.end).getTime() -
+              new Date(selectedEvent.end).getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(11, 16)
+        : ""
+    }
+    onChange={(e) =>
+      setSelectedEvent((prev) => {
+        if (!prev) return null;
+
+        const baseDate = !isNaN(new Date(prev.end).getTime())
+          ? new Date(prev.end)
+          : new Date();
+
+        baseDate.setHours(
+          parseInt(e.target.value.split(":")[0]),
+          parseInt(e.target.value.split(":")[1]),
+          0,
+          0
+        );
+
+        return { ...prev, end: baseDate.toISOString() };
+      })
+    }
+  />
+</label>
+        </>
+      ) : (
+        <>
+          {/* Data e ora completa */}
+          <label>
+  Inizio:
+  <input
+    className="input-field"
+    type="datetime-local"
+    value={
+      selectedEvent.start && !isNaN(new Date(selectedEvent.start).getTime())
+        ? new Date(
+            new Date(selectedEvent.start).getTime() -
+              new Date(selectedEvent.start).getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(0, 16)
+        : ""
+    }
+    onChange={(e) =>
+      setSelectedEvent((prev) =>
+        prev ? { ...prev, start: new Date(e.target.value).toISOString() } : prev
+      )
+    }
+  />
+          </label>
+
+          <label>
+  Fine:
+  <input
+    className="input-field"
+    type="datetime-local"
+    value={
+      selectedEvent.end && !isNaN(new Date(selectedEvent.end).getTime())
+        ? new Date(
+            new Date(selectedEvent.end).getTime() -
+              new Date(selectedEvent.end).getTimezoneOffset() * 60000
+          )
+            .toISOString()
+            .slice(0, 16)
+        : ""
+    }
+    onChange={(e) =>
+      setSelectedEvent((prev) =>
+        prev ? { ...prev, end: new Date(e.target.value).toISOString() } : prev
+      )
+    }
+  />
+          </label>
+        </>
+      )}
+
+      {/* All day */}
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={selectedEvent.allDay || false}
+          onChange={(e) =>
+            setSelectedEvent((prev) =>
+              prev ? { ...prev, allDay: e.target.checked } : null
+            )
+          }
+        />
+        Evento per tutta la giornata
+      </label>
+
+      {/* Checkbox modifica tutta la serie */}
+      <label className="checkbox-label" style={{ marginTop: "8px" }}>
+        <input
+          type="checkbox"
+          checked={editMode === "all"}
+          onChange={(e) => setEditMode(e.target.checked ? "all" : "single")}
+        />
+        Modifica/elimina tutta la serie
+      </label>
+
+      {/* Bottoni */}
+      <div className="event-actions">
+        {editMode === "all" ? (
+          <button
+            className="event-btn edit-btn"
+            onClick={() => handleEditEvent("all")}
+          >
+            Modifica tutta la serie
+          </button>
+        ) : (
+          <button
+            className="event-btn edit-btn"
+            onClick={() => handleEditEvent("single")}
+          >
+            Modifica solo questa occorrenza
+          </button>
+        )}
+        {editMode === "all" ? (
+          <button
+            className="event-btn delete-btn"
+            onClick={() => handleDeleteEvent("all")}
+          >
+            Elimina tutta la serie
+          </button>
+        ) : (
+          <button
+            className="event-btn delete-btn"
+            onClick={() => handleDeleteEvent("single")}
+          >
+            Elimina solo questa occorrenza
+          </button>
+        )}
+        <button
+          className="event-btn"
+          onClick={() => {
+            setSelectedEvent(null);
+            setEditMode("single");
+          }}
+        >
+          Annulla
+        </button>
       </div>
-    )}
+    </div>
+  </div>
+)}
+</div>
+  )};
+
+  
+
 
 export default CalendarPage;

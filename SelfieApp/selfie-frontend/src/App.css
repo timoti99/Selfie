@@ -603,3 +603,15 @@ body, html {
 .input-field::placeholder {
   color: #aaa;
 }
+
+.fc-event.recurring-event {
+  background-color: red !important;
+  border-color: red !important;
+}
+
+/* Eventi ricorrenti allDay: riquadro rosso */
+.fc-daygrid-event.recurring-event {
+  background-color: red !important;
+  border: 1px solid darkred !important;
+  color: white !important;
+}

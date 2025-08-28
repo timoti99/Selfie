@@ -63,6 +63,41 @@ interface SelectedEvent {
   extendedProps?: Record<string, unknown>;
 }
 
+type Task = {
+  _id: string;
+  title: string;
+  startDate: string;
+  dueDate: string;   
+  completed: boolean;
+};
+
+type NewTask = Omit<Task, "id">;
+
+const mapTasksToEvents = (tsks: Task[]) =>
+  tsks.flatMap((t) => [
+    {
+      id: `task-${t._id}-start`,
+      title: `📝 ${t.title} (inizio)`,
+      start: t.startDate,
+      allDay: true,
+      className: `task-start${t.completed ? " task-completed" : ""}`,
+      extendedProps: {
+        type: "task",
+        taskData: t,
+      },
+    },
+    {
+      id: `task-${t._id}-due`,
+      title: `📝 ${t.title} (scadenza)`,
+      start: t.dueDate,
+      allDay: true,
+      className: `task-deadline${t.completed ? " task-completed" : ""}`,
+      extendedProps: {
+        type: "task",
+        taskData: t,
+      },
+    },
+  ]);
 
 const CalendarPage: React.FC = () => {
     const [events, setEvents] = useState<EventInput[]>([]);
@@ -71,6 +106,19 @@ const CalendarPage: React.FC = () => {
     const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
     const [showEditBox, setShowEditBox] = useState(false);
     const [editMode, setEditMode] = useState<'single' | 'all'>('single');
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [serverEventsMapped, setServerEventsMapped] = useState<EventInput[]>([]);
+    const [showTaskBox, setShowTaskBox] = useState(false);
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [showTaskEditBox, setShowTaskEditBox] = useState(false);
+
+    const [newTask, setNewTask] = useState<NewTask>({
+      _id: "",
+      title: "",
+      startDate: "",
+      dueDate: "",
+  completed: false,
+  });
 
     const [newEvent, setNewEvent] = useState<NewEvent>({
     title: '',
@@ -87,10 +135,10 @@ const CalendarPage: React.FC = () => {
     }
     });
 
-  
 
     const token = localStorage.getItem("token");
 
+  
     const fetchEvents = useCallback(async () => {
   if (!token) return;
   try {
@@ -100,8 +148,7 @@ const CalendarPage: React.FC = () => {
 
     const serverEvents: EventFromServer[] = res.data;
 
-    setEvents(
-      serverEvents.map((ev) => ({
+    const mappedServer: EventInput[] = serverEvents.map((ev) => ({
         id: String(ev._id),
         title: ev.title,
         start: ev.start,
@@ -113,20 +160,50 @@ const CalendarPage: React.FC = () => {
           isRecurring: ev.isRecurring,
           overridesOriginalId: ev.overridesOriginalId,
           recurrenceId: ev.recurrenceId,
-          // parent/series id
           seriesParentId: ev.seriesParentId ?? ev.overridesOriginalId ?? null,
         },
         className: ev.isRecurring ? "recurring-event" : "single-event"
-      }))
-    );
-  } catch (err) {
-    console.error("Errore nel fetch degli eventi:", err);
-  }
-}, [token]);
+      }));
 
-    useEffect(() => {
+       setServerEventsMapped(mappedServer);
+
+       setEvents([
+  ...mappedServer,
+   ...mapTasksToEvents(tasks),
+]);
+
+    } catch (err) {
+      console.error("Errore nel fetch degli eventi:", err);
+    }
+  }, [token, tasks]);
+
+  useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+   useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const res = await axios.get(`${API}/tasks`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setTasks(res.data);
+      } catch (err) {
+        console.error("Errore caricamento task", err);
+      }
+    };
+
+    if (token) fetchTasks();
+  }, [token]);
+
+
+  // Rinfondo eventi e task quando cambiano le task
+  useEffect(() => {
+    setEvents([
+      ...serverEventsMapped,
+      ...mapTasksToEvents(tasks),
+  ]);
+}, [tasks, serverEventsMapped]);
 
     const handleDateClick = (arg: DateClickArg) => {
        setSelectedDate(arg.dateStr);
@@ -218,6 +295,22 @@ const CalendarPage: React.FC = () => {
   const handleEventClick = (info: EventClickArg) => {
     const e = info.event;
 
+    //parte task
+     if (e.extendedProps?.type === "task" && e.extendedProps?.taskData) {
+    const task = e.extendedProps.taskData;
+
+    setSelectedTask({
+      _id: task._id,
+      title: task.title,
+      startDate: task.startDate,
+      dueDate: task.dueDate,
+      completed: task.completed,
+    });
+    setShowTaskEditBox(true);
+    return;
+  }
+
+//parte eventi
   setSelectedEvent({
     id: e.id ?? e.extendedProps?._id ?? null,
     title: e.title,
@@ -361,29 +454,144 @@ const CalendarPage: React.FC = () => {
 };
 
 
+//TASK
+// Funzione per aggiungere un’attività
+const handleAddTask = async () => {
+ if (!newTask.title || !newTask.dueDate) {
+    alert("Titolo e scadenza obbligatori");
+    return;
+  }
+
+  if (!token) {
+    alert("Non sei autenticato. Fai login di nuovo.");
+    return;
+  }
+
+  try {
+    const res = await axios.post(`${API}/tasks`, newTask, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // risposta dal backend quindi aggiungo alla lista
+    const savedTask: Task = res.data;
+    setTasks((prev) => [...prev, savedTask]);
+
+    // reset campi input
+    setNewTask({ _id: "", title: "", startDate: "", dueDate: "", completed: false });
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+    console.error("Errore aggiunta task", err.response || err.message);
+    if (err.response?.status === 401) {
+      alert("Sessione scaduta o non valida. Fai login di nuovo.");
+    }
+  } else if (err instanceof Error) {
+    console.error("Errore generico:", err.message);
+  } else {
+    console.error("Errore sconosciuto", err);
+  }
+}
+};
+
+// Funzione per segnare completata
+const toggleTaskCompletion = async (id: string) => {
+  try {
+    const task = tasks.find((t) => t._id === id); // <-- uso _id, non id
+    if (!task) return;
+
+    const res = await axios.put(
+      `${API}/tasks/${id}`,
+      { completed: !task.completed }, // mando solo la proprietà che cambia
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setTasks((prev) =>
+      prev.map((t) => (t._id === id ? res.data : t)) // aggiorno con quello che torna dal backend
+    );
+  } catch (err) {
+    console.error("Errore aggiornamento task", err);
+  }
+};
+
+
+//funzione per modificare le attività
+const handleEditTask = async () => {
+  if (!selectedTask) return;
+  try {
+    await axios.put(
+      `http://localhost:3000/api/auth/tasks/${selectedTask._id}`,
+      {
+        title: selectedTask.title,
+        startDate: selectedTask.startDate,
+        dueDate: selectedTask.dueDate,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+
+    alert("Task aggiornata con successo!");
+    setShowTaskEditBox(false);
+    setSelectedTask(null);
+    setTasks((prev) =>
+    prev.map((t) => (t._id === selectedTask._id ? selectedTask : t))
+);
+  } catch (err) {
+    console.error("Errore modifica task:", err);
+    alert("Errore durante la modifica della task");
+  }
+};
+
+//funzione per eliminare le attività
+const deleteTask = async (id: string) => {
+  try {
+    await axios.delete(`${API}/tasks/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setTasks((prev) => prev.filter((t) => t._id !== id));
+  } catch (err) {
+    console.error("Errore eliminazione task", err);
+  }
+};
+
+
   return (
     <div className="calendar-page-container">
   <Navbar />
-<div style={{ marginTop: "20px", textAlign: "center" }}>
-  <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "5px", color: "white" }}>
-    Benvenuto nel tuo calendario personale
-  </h2>
-  <p style={{ fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)", margin: "3px 0" }}>
-    Clicca su una data per creare un nuovo evento
-  </p>
-  <p style={{ fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)", margin: "7px 0" }}>
-    Oppure clicca su un evento già esistente per modificarlo o eliminarlo
-  </p>
-   <p style={{fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)"}}>
-  Legenda:
-</p>
- <p style={{fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)" }}>
-  🔵Evento con orario specifico
-</p>
-<p style={{ fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.7)" }}>
-  🟥Evento ricorrente
-</p>
-</div>
+
+<div className="calendar-header">
+    <h2>Benvenuto nel tuo calendario personale</h2>
+
+    <div className="calendar-instructions">
+      <div className="instructions-left">
+        <p>Eventi:</p>
+        <p>Clicca su una data o sul bottone in basso per creare un nuovo evento.</p>
+        <p>Oppure clicca su un evento già esistente per modificarlo o eliminarlo.</p>
+
+        <h4>Legenda calendario:</h4>
+        <ul>
+          <li>🔵 Evento con orario specifico</li>
+          <li>🟥 Evento ricorrente</li>
+          <li>🟩 Attività</li>
+        </ul>
+      </div>
+
+      <div className="instructions-right">
+        <p>Attività:</p>
+        <p>
+          Clicca sul pulsante in basso per creare una nuova Attività 
+        </p>
+        <p>
+          oppure cliccane una già esistente per modificarla.
+        </p>
+        <p>
+          🟩 (verde chiaro) data inizio, (verde scuro) data scadenza, 🔳 (grigio) Attività completata.
+        </p>
+        <p>
+          Clicca sulla ❌ nella lista in basso per eliminare l'attività dal calendario.
+        </p>
+      </div>
+    </div>
+  </div>
+
 
   <div className="calendar-container">
     <FullCalendar
@@ -450,7 +658,7 @@ const CalendarPage: React.FC = () => {
   }
   onChange={(e) => {
     const date = new Date(e.target.value);
-    setNewEvent((prev) => ({ ...prev, end: date.toISOString() })); // ✅ niente offset qui
+    setNewEvent((prev) => ({ ...prev, end: date.toISOString() })); 
   }}
 />
         <input
@@ -480,6 +688,8 @@ const CalendarPage: React.FC = () => {
           />
           Evento ripetibile
         </label>
+
+
 
         {newEvent.isRecurring && (
           <div className="recurrence-section">
@@ -536,6 +746,96 @@ const CalendarPage: React.FC = () => {
       </div>
     </div>
   )}
+
+  {showTaskBox && (
+  <div className="event-box task-box">
+    <h3>Nuova Attività</h3>
+
+    {/* Titolo */}
+    <label>
+    Titolo:
+    <input
+      type="text"
+      value={newTask.title}
+      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+      className="input-field"
+    />
+  </label>
+
+
+    {/* Data di inizio */}
+   <label>
+    Data inizio:
+    <input
+      type="date"
+      value={newTask.startDate}
+      onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
+      className="input-field"
+    />
+  </label>
+
+{/* Data di scadenza */}
+    <label>
+    Scadenza:
+    <input
+      type="date"
+      value={newTask.dueDate}
+      onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+      className="input-field"
+    />
+  </label>
+
+    <button onClick={handleAddTask}>Aggiungi Attività</button>
+    <button onClick={() => setShowTaskBox(false)}>Chiudi</button>
+  </div>
+)}
+
+{showTaskEditBox && selectedTask && (
+  <>
+  <div
+      className="overlay-background"
+      onClick={() => setShowTaskEditBox(false)}
+    />
+  <div className="task-modal">
+    <h3>Modifica attività</h3>
+
+    <div className="task-form-card">
+    <label>
+      Titolo:
+      <input
+        type="text"
+        value={selectedTask.title}
+        onChange={(e) =>
+          setSelectedTask({ ...selectedTask, title: e.target.value })
+        }
+      />
+    </label>
+    <label>
+      Data inizio:
+      <input
+        type="date"
+        value={selectedTask.startDate?.slice(0, 10)}
+        onChange={(e) =>
+          setSelectedTask({ ...selectedTask, startDate: e.target.value })
+        }
+      />
+    </label>
+    <label>
+      Data scadenza:
+      <input
+        type="date"
+        value={selectedTask.dueDate?.slice(0, 10)}
+        onChange={(e) =>
+          setSelectedTask({ ...selectedTask, dueDate: e.target.value })
+        }
+      />
+    </label>
+    <button onClick={handleEditTask}>Salva</button>
+    <button onClick={() => setShowTaskEditBox(false)}>Annulla</button>
+  </div>
+  </div>
+  </>
+)}
 
 {selectedEvent && !selectedEvent.isRecurring && showEditBox && (
   <div className="event-details-wrapper">
@@ -767,6 +1067,21 @@ const CalendarPage: React.FC = () => {
     }
   />
 </label>
+
+<label>
+      Luogo:
+      <input
+        className="input-field"
+        type="text"
+        value={selectedEvent.location || ""}
+        onChange={(e) =>
+          setSelectedEvent((prev) =>
+            prev ? { ...prev, location: e.target.value } : prev
+          )
+        }
+      />
+    </label>
+
         </>
       ) : (
         <>
@@ -816,6 +1131,21 @@ const CalendarPage: React.FC = () => {
     }
   />
           </label>
+
+          <label>
+      Luogo:
+      <input
+        className="input-field"
+        type="text"
+        value={selectedEvent.location || ""}
+        onChange={(e) =>
+          setSelectedEvent((prev) =>
+            prev ? { ...prev, location: e.target.value } : prev
+          )
+        }
+      />
+    </label>
+
         </>
       )}
 
@@ -888,6 +1218,77 @@ const CalendarPage: React.FC = () => {
     </div>
   </div>
 )}
+
+<div style={{ marginTop: "1rem", textAlign: "center" }}>
+  <button
+    onClick={() => setShowEventBox(true)}
+    style={{
+      marginRight: "10px",
+      padding: "6px 12px",
+      background: "#007bff",
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+    }}
+  >
+    ➕ Nuovo Evento
+  </button>
+
+  <button
+    onClick={() => setShowTaskBox(true)} 
+    style={{
+      padding: "6px 12px",
+      background: "#28a745",
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+    }}
+  >
+    📝 Nuova Attività
+  </button>
+</div>
+ 
+<div className="task-list" style={{ marginTop: "20px" }}>
+  <h3>Le tue Attività</h3>
+
+  
+  <ul>
+    {tasks.map((task) => {
+      const isOverdue =
+        !task.completed && new Date(task.dueDate) < new Date();
+      return (
+       <li key={task._id} className="task-item">
+  <span style={{ marginRight: "8px", fontSize: "0.9rem", color: "rgba(255,255,255,0.7)" }}>
+    Completata →
+  </span>
+  <input
+    type="checkbox"
+    checked={task.completed}
+    onChange={() => toggleTaskCompletion(task._id)}
+  />
+  <span
+    style={{
+      textDecoration: task.completed ? "line-through" : "none",
+      marginLeft: "6px"
+    }}
+  >
+    {task.title} (scade il{" "}
+    {new Date(task.dueDate).toLocaleDateString()})
+  </span>
+  {isOverdue && (
+    <strong style={{ color: "red", marginLeft: "8px" }}>
+      IN RITARDO
+    </strong>
+  )}
+  <button onClick={() => deleteTask(task._id)}>❌</button>
+</li>
+      );
+    })}
+  </ul>
+</div>
+
 </div>
   )};
 

@@ -1,9 +1,10 @@
 import User from "../models/user";
-import Evento from "../models/evento"
+import Evento from "../models/evento";
+import Task from "../models/task";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import express from "express";
+import express, { RequestHandler } from "express";
 import mongoose from "mongoose";
 
 import { Router, Request, Response, NextFunction } from "express";
@@ -28,12 +29,25 @@ function authenticateToken(req: Request, res: Response, next: NextFunction): voi
 
   const token = authHeader.split(" ")[1];
   try {
-    const decoded: any = jwt.verify(token, jwtSecret!);
-    (req as any).user = { userId: decoded.id };
+    const decoded: any = jwt.verify(token, jwtSecret!) as { id: string};
+    (req as any).user = { id: decoded.id, userId: decoded.id };
     next();
   } catch (err) {
     res.status(403).json({ message: "Token non valido o scaduto" });
   }
+}
+
+interface AuthenticatedRequest extends Request {
+  user?: { id?: string; userId?: string };
+}
+
+function getUserIdOr401(req: AuthenticatedRequest, res: Response): string | null {
+  const userId = (req as any).user?.id || (req as any).user?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+  return userId;
 }
 
 //funzione per generare le ricorrenze
@@ -550,5 +564,81 @@ router.delete("/eventi/ricorrenti/:recurrenceId", authenticateToken, async (req:
   }
 });
 
+
+//ROUTE per le TASK
+// GET task
+router.get("/tasks", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+   console.log("✅ req.user in /tasks:", (req as any).user);
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const tasks = await Task.find({ userId }).sort({ dueDate: 1, createdAt: -1 });
+    res.json(tasks);
+  } catch (err) {
+    res.status(500).json({ error: "Errore caricamento task" });
+  }
+});
+// route per aggiungere una nuova task
+router.post("/tasks", authenticateToken, (async (req: AuthenticatedRequest, res: Response) => {
+  console.log("👉 req.user:", req.user);
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const { title, startDate, dueDate } = req.body;
+    if (!title || !startDate || !dueDate) {
+      return res.status(400).json({ error: "Titolo, inizio e scadenza obbligatori" });
+    }
+
+    const newTask = new Task({
+      userId,
+      title,
+      startDate: new Date(startDate),
+      dueDate: new Date(dueDate),
+      completed: false,
+    });
+
+    await newTask.save();
+    res.status(201).json(newTask);
+  } catch (err) {
+    res.status(500).json({ error: "Errore creazione task" });
+  }
+}) as RequestHandler
+);
+
+
+// route per aggiornare lo stato di una task
+router.put("/tasks/:id", authenticateToken, (async (req: AuthenticatedRequest, res: Response) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const { id } = req.params;
+    const update = req.body ?? {};
+    const updated = await Task.findOneAndUpdate({ _id: id, userId }, update, { new: true });
+    if (!updated) return res.status(404).json({ error: "Task non trovata" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: "Errore aggiornamento task" });
+  }
+}) as RequestHandler
+);
+
+// route per cancellare le task
+router.delete("/tasks/:id", authenticateToken, (async (req: AuthenticatedRequest, res: Response) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const { id } = req.params;
+    const deleted = await Task.findOneAndDelete({ _id: id, userId });
+    if (!deleted) return res.status(404).json({ error: "Task non trovata" });
+    res.json({ message: "Task eliminata" });
+  } catch (err) {
+    res.status(500).json({ error: "Errore eliminazione task" });
+  }
+}) as RequestHandler
+);
 
 export default router;

@@ -1,6 +1,7 @@
 import User from "../models/user";
 import Evento from "../models/evento";
 import Task from "../models/task";
+import Note from "../models/note";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -640,5 +641,116 @@ router.delete("/tasks/:id", authenticateToken, (async (req: AuthenticatedRequest
   }
 }) as RequestHandler
 );
+
+
+//ROUTE per le note
+//GET tutte le note
+router.get("/notes", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const notes = await Note.find({ userId }).sort({ updatedAt: -1 });
+    res.json(notes);
+  } catch (err) {
+    res.status(500).json({ error: "Errore caricamento note" });
+  }
+});
+
+// POST nuova nota
+router.post("/notes", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const { title, content, categories } = req.body;
+    if (!title || !content) {
+       res.status(400).json({ error: "Titolo e contenuto obbligatori" });
+       return;
+    }
+
+    const newNote = new Note({
+      userId,
+      title,
+      content,
+      categories: categories || [],
+    });
+
+    await newNote.save();
+    res.status(201).json(newNote);
+  } catch (err) {
+    res.status(500).json({ error: "Errore creazione nota" });
+  }
+});
+
+// PUT aggiornare una nota
+router.put("/notes/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const { id } = req.params;
+    const update = req.body ?? {};
+    const updated = await Note.findOneAndUpdate({ _id: id, userId }, update, { new: true });
+    if (!updated) 
+    res.status(404).json({ error: "Nota non trovata" });
+    res.json(updated);
+    return;
+  } catch (err) {
+    res.status(500).json({ error: "Errore aggiornamento nota" });
+  }
+});
+
+// DELETE cancellare una nota
+router.delete("/notes/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const { id } = req.params;
+    const deleted = await Note.findOneAndDelete({ _id: id, userId });
+    if (!deleted)
+    res.status(404).json({ error: "Nota non trovata" });
+    res.json({ message: "Nota eliminata" });
+    return;
+  } catch (err) {
+    res.status(500).json({ error: "Errore eliminazione nota" });
+  }
+});
+
+// POST duplicare una nota
+router.post("/notes/:id/duplicate", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const { id } = req.params;
+    const original = await Note.findOne({ _id: id, userId }).exec();
+
+    if (!original) {
+       res.status(404).json({ error: "Nota non trovata" });
+       return;
+    }
+
+    // qui TS ora sa che original non è null
+    const title = original.title ?? "Senza titolo";
+    const content = original.content ?? "";
+    const categories = original.categories ?? [];
+
+    const duplicate = new Note({
+      userId,
+      title: `${title} (Copia)`,
+      content,
+      categories,
+    });
+
+    await duplicate.save();
+    res.status(201).json(duplicate);
+  } catch (err) {
+    console.error("Errore duplicazione nota", err);
+    res.status(500).json({ error: "Errore duplicazione nota" });
+  }
+});
+
 
 export default router;

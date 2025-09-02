@@ -867,3 +867,269 @@ body, html {
 .instructions-right {
   flex: 1;
 }
+
+/* Parte Pagina Note */
+.notes-page { 
+ margin-top: 0; 
+  padding: 0;
+  color: white;
+  background: black;
+  min-height: 100vh;
+}
+
+.notes-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.notes-header h1 {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: white;   
+  margin-bottom: 8px;
+}
+
+.notes-header p {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8); 
+  margin: 0;
+}
+
+
+.note-form {
+  background: #1e1e1e;
+  padding: 25px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 1000px; 
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.note-form input,
+.note-form textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: white;
+  font-size: 1rem;
+}
+
+.note-textarea {
+ min-height: 400px; 
+  resize: vertical;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.note-form {
+  background: #1e1e1e;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto; 
+}
+
+.note-form textarea {
+  min-height: 65vh; 
+  resize: vertical;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.note-form button {
+  width: auto;
+  max-width: 200px; 
+  align-self: flex-start; 
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: white;
+  font-size: 1rem;
+  transition: background 0.2s ease;
+}
+
+.note-form button:hover {
+  background: #218838;
+}
+
+.sort-controls {
+  margin-bottom: 15px;
+}
+
+.notes-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.note-card {
+   background: #242424;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 280px; 
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.note-card p {
+  margin-bottom: 15px; 
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-card h3 {
+  margin: 0 0 12px 0; 
+  color: #ffc107;
+  font-size: 1.2rem;
+}
+
+.note-actions {
+   margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.note-content {
+  flex-grow: 1; 
+  margin-bottom: 10px;
+}
+
+.note-meta {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-top: auto;
+  min-height: 50px; 
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.note-actions button {
+ flex: 1 1 45%; 
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  color: white;
+}
+
+.note-actions button:first-child {
+  background: #007bff;
+}
+
+.note-actions button:nth-child(2) {
+  background: #17a2b8; 
+}
+
+.note-actions button:nth-child(3) {
+  background: #dc3545; 
+}
+
+.note-actions button:nth-child(4) {
+  background: #ff4d4d; 
+}
+
+.note-actions button:hover {
+  opacity: 0.85;
+}
+
+.edit-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+
+.modal-content {
+  width: 70vw; 
+  max-width: 900px; 
+  background: #1e1e1e;
+  padding: 20px;
+  border-radius: 10px;
+  color: white;
+}
+
+.modal-content input,
+.modal-content textarea {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: white;
+  font-size: 1rem;
+}
+
+
+.modal-content textarea {
+  height: 300px; 
+  resize: vertical;
+}
+
+.edit-box {
+  background: #1e1e1e;
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 600px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.edit-box input,
+.edit-box textarea {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  padding: 10px;
+  color: white;
+}
+
+.edit-box button {
+  padding: 10px;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+.edit-box button:first-of-type {
+  background: #28a745;
+  color: white;
+}
+
+.edit-box button:last-of-type {
+  background: #dc3545;
+  color: white;
+}

@@ -51,7 +51,7 @@ const Navbar: React.FC = () => {
           <Link to="/pomodoro">Pomodoro</Link>
           <Link to="/calendar">Calendario</Link>
           <Link to="/note">Note</Link>
-          <Link to="/timemachine">Time Machine</Link>
+          <Link to="/timeMachine">Time Machine</Link>
         </div>
 
         <button className="settings-button" onClick={toggleMenu}>

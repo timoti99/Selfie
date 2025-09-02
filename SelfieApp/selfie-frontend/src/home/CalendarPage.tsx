@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from "react";
+import React, {useState, useEffect, useCallback, useContext, useRef} from "react";
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -11,6 +11,7 @@ import Modal from 'react-modal';
 import Navbar from "./Navbar";
 import axios from "axios";
 import '../App.css';
+import { TimeMachineContext } from '../timeContext';
 
 const API = "http://localhost:3000/api/auth";
 
@@ -100,55 +101,54 @@ const mapTasksToEvents = (tsks: Task[]) =>
   ]);
 
 const CalendarPage: React.FC = () => {
-    const [events, setEvents] = useState<EventInput[]>([]);
-    const [showEventBox, setShowEventBox] = useState(false);
-    const [selectedDate, setSelectedDate] = useState('');
-    const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
-    const [showEditBox, setShowEditBox] = useState(false);
-    const [editMode, setEditMode] = useState<'single' | 'all'>('single');
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [serverEventsMapped, setServerEventsMapped] = useState<EventInput[]>([]);
-    const [showTaskBox, setShowTaskBox] = useState(false);
-    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-    const [showTaskEditBox, setShowTaskEditBox] = useState(false);
-
-    const [newTask, setNewTask] = useState<NewTask>({
-      _id: "",
-      title: "",
-      startDate: "",
-      dueDate: "",
-  completed: false,
+  const [events, setEvents] = useState<EventInput[]>([]);
+  const [showEventBox, setShowEventBox] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
+  const [showEditBox, setShowEditBox] = useState(false);
+  const [editMode, setEditMode] = useState<'single' | 'all'>('single');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [serverEventsMapped, setServerEventsMapped] = useState<EventInput[]>([]);
+  const [showTaskBox, setShowTaskBox] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskEditBox, setShowTaskEditBox] = useState(false);
+  const { currentDate } = useContext(TimeMachineContext);
+  const calendarRef = useRef<FullCalendar | null>(null);
+  const [newTask, setNewTask] = useState<NewTask>({
+    _id: "",
+    title: "",
+    startDate: "",
+    dueDate: "",
+    completed: false,
+  });
+  const [newEvent, setNewEvent] = useState<NewEvent>({
+    title: '',
+    start: '',
+    end: '',
+    durationMinutes: 60,
+    location: '',
+    allDay: false,
+    isRecurring: false,
+    recurrence: {
+      frequency: '',
+      repeatCount: 0,
+      repeatUntil: ''
+    }
   });
 
-    const [newEvent, setNewEvent] = useState<NewEvent>({
-    title: '',
-  start: '',
-  end: '',
-  durationMinutes: 60,
-  location: '',
-  allDay: false,
-  isRecurring: false,
-  recurrence: {
-    frequency: '',
-    repeatCount: 0,
-    repeatUntil: ''
-    }
-    });
-
-
-    const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
   
-    const fetchEvents = useCallback(async () => {
-  if (!token) return;
-  try {
-    const res = await axios.get(`${API}/eventi`, {
+  const fetchEvents = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API}/eventi`, {
       headers: { Authorization: `Bearer ${token}` },
-    });
+      });
 
-    const serverEvents: EventFromServer[] = res.data;
+      const serverEvents: EventFromServer[] = res.data;
 
-    const mappedServer: EventInput[] = serverEvents.map((ev) => ({
+      const mappedServer: EventInput[] = serverEvents.map((ev) => ({
         id: String(ev._id),
         title: ev.title,
         start: ev.start,
@@ -165,12 +165,9 @@ const CalendarPage: React.FC = () => {
         className: ev.isRecurring ? "recurring-event" : "single-event"
       }));
 
-       setServerEventsMapped(mappedServer);
+      setServerEventsMapped(mappedServer);
 
-       setEvents([
-  ...mappedServer,
-   ...mapTasksToEvents(tasks),
-]);
+      setEvents([...mappedServer, ...mapTasksToEvents(tasks),]);
 
     } catch (err) {
       console.error("Errore nel fetch degli eventi:", err);
@@ -181,7 +178,7 @@ const CalendarPage: React.FC = () => {
     fetchEvents();
   }, [fetchEvents]);
 
-   useEffect(() => {
+  useEffect(() => {
     const fetchTasks = async () => {
       try {
         const res = await axios.get(`${API}/tasks`, {
@@ -202,355 +199,360 @@ const CalendarPage: React.FC = () => {
     setEvents([
       ...serverEventsMapped,
       ...mapTasksToEvents(tasks),
-  ]);
-}, [tasks, serverEventsMapped]);
+    ]);
+  }, [tasks, serverEventsMapped]);
 
-    const handleDateClick = (arg: DateClickArg) => {
-       setSelectedDate(arg.dateStr);
+  //effect per modificare la data corrente
+  useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (api) {
+      api.gotoDate(currentDate);
+    }
+  }, [currentDate]);
+
+  const handleDateClick = (arg: DateClickArg) => {
+    setSelectedDate(arg.dateStr);
     setNewEvent(prev => ({ ...prev, start: arg.dateStr}));
     setShowEventBox(true);
-    };
+  };
 
 
-   const handleAddEvent = async () => {
-  if (!newEvent.title || !newEvent.start) { alert("Titolo e data obbligatori"); return; }
+  const handleAddEvent = async () => {
+    if (!newEvent.title || !newEvent.start) { alert("Titolo e data obbligatori"); return; }
 
-  const startDate = new Date(newEvent.start);
-  let endDate = newEvent.end ? new Date(newEvent.end) : new Date(startDate.getTime() + 30*60000);
+    const startDate = new Date(newEvent.start);
+    let endDate = newEvent.end ? new Date(newEvent.end) : new Date(startDate.getTime() + 30*60000);
 
-  if (newEvent.allDay) {
-    startDate.setHours(0,0,0,0);
-    endDate = new Date(startDate);
-    endDate.setHours(23,59,59,999);
-  }
+    if (newEvent.allDay) {
+      startDate.setHours(0,0,0,0);
+      endDate = new Date(startDate);
+      endDate.setHours(23,59,59,999);
+    }
 
-  const recurrenceId = crypto?.randomUUID?.() || Math.random().toString(36).slice(2,10);
+    const recurrenceId = crypto?.randomUUID?.() || Math.random().toString(36).slice(2,10);
 
-  if (newEvent.isRecurring && newEvent.recurrence?.frequency && newEvent.recurrence?.repeatUntil) {
-    const payload = {
+    if (newEvent.isRecurring && newEvent.recurrence?.frequency && newEvent.recurrence?.repeatUntil) {
+      const payload = {
+        title: newEvent.title,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        allDay: newEvent.allDay,
+        location: newEvent.location,
+        isRecurring: true,
+        recurrence: {
+          frequency: newEvent.recurrence.frequency,
+          repeatUntil: new Date(newEvent.recurrence.repeatUntil).toISOString()
+        },
+        recurrenceId
+      };
+
+      try {
+        await axios.post(`${API}/eventi`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        await fetchEvents();
+        setShowEventBox(false);
+      } catch (err) {
+        console.error(err);
+      }
+      return;
+    }
+
+    // Evento singolo
+    const singlePayload = {
       title: newEvent.title,
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       allDay: newEvent.allDay,
       location: newEvent.location,
-      isRecurring: true,
-      recurrence: {
-        frequency: newEvent.recurrence.frequency,
-        repeatUntil: new Date(newEvent.recurrence.repeatUntil).toISOString()
-      },
-      recurrenceId
+      isRecurring: false
     };
 
     try {
-      await axios.post(`${API}/eventi`, payload, {
+      const res = await axios.post(`${API}/eventi`, singlePayload, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      await fetchEvents();
+
+      const saved = res.data;
+      const mapped = {
+        id: String(saved._id),
+        title: saved.title,
+        start: new Date(saved.start),
+        end: saved.end ? new Date(saved.end) : undefined,
+        allDay: !!saved.allDay,
+        extendedProps: {
+          location: saved.location || "",
+          durationMinutes: saved.durationMinutes || 60,
+          isRecurring: !!saved.isRecurring,
+          recurrenceId: saved.recurrenceId ?? null,
+          overridesOriginalId: saved.overridesOriginalId ?? null,
+          isCancelled: !!saved.isCancelled
+        }
+      };
+
+      setEvents(prev => [...prev, mapped]);
       setShowEventBox(false);
     } catch (err) {
       console.error(err);
     }
-    return;
-  }
-
-  // Evento singolo
-  const singlePayload = {
-    title: newEvent.title,
-  start: startDate.toISOString(),
-  end: endDate.toISOString(),
-  allDay: newEvent.allDay,
-  location: newEvent.location,
-  isRecurring: false
   };
-
-  try {
-    const res = await axios.post(`${API}/eventi`, singlePayload, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    const saved = res.data;
-  const mapped = {
-    id: String(saved._id),
-    title: saved.title,
-    start: new Date(saved.start),
-    end: saved.end ? new Date(saved.end) : undefined,
-    allDay: !!saved.allDay,
-    extendedProps: {
-      location: saved.location || "",
-      durationMinutes: saved.durationMinutes || 60,
-      isRecurring: !!saved.isRecurring,
-      recurrenceId: saved.recurrenceId ?? null,
-      overridesOriginalId: saved.overridesOriginalId ?? null,
-      isCancelled: !!saved.isCancelled
-    }
-  };
-
-    setEvents(prev => [...prev, mapped]);
-    setShowEventBox(false);
-  } catch (err) {
-    console.error(err);
-  }
-};
 
   const handleEventClick = (info: EventClickArg) => {
     const e = info.event;
 
     //parte task
-     if (e.extendedProps?.type === "task" && e.extendedProps?.taskData) {
-    const task = e.extendedProps.taskData;
+    if (e.extendedProps?.type === "task" && e.extendedProps?.taskData) {
+      const task = e.extendedProps.taskData;
 
-    setSelectedTask({
-      _id: task._id,
-      title: task.title,
-      startDate: task.startDate,
-      dueDate: task.dueDate,
-      completed: task.completed,
+      setSelectedTask({
+        _id: task._id,
+        title: task.title,
+        startDate: task.startDate,
+        dueDate: task.dueDate,
+        completed: task.completed,
+      });
+      setShowTaskEditBox(true);
+      return;
+    }
+
+    //parte eventi
+    setSelectedEvent({
+      id: e.id ?? e.extendedProps?._id ?? null,
+      title: e.title,
+      start: e.start?.toISOString() || "",
+      end: e.end?.toISOString() || "",
+      location: e.extendedProps?.location || "",
+      allDay: e.allDay,
+      recurrenceId: e.extendedProps?.recurrenceId || null,
+      overridesOriginalId: e.extendedProps?.overridesOriginalId || null,
+      isRecurring: !!e.extendedProps?.isRecurring,
+      recurrence: e.extendedProps?.recurrence || undefined,
+      extendedProps: e.extendedProps
     });
-    setShowTaskEditBox(true);
-    return;
-  }
 
-//parte eventi
-  setSelectedEvent({
-    id: e.id ?? e.extendedProps?._id ?? null,
-    title: e.title,
-    start: e.start?.toISOString() || "",
-    end: e.end?.toISOString() || "",
-    location: e.extendedProps?.location || "",
-    allDay: e.allDay,
-    recurrenceId: e.extendedProps?.recurrenceId || null,
-    overridesOriginalId: e.extendedProps?.overridesOriginalId || null,
-    isRecurring: !!e.extendedProps?.isRecurring,
-    recurrence: e.extendedProps?.recurrence || undefined,
-    extendedProps: e.extendedProps
-  });
-
-  if (e.extendedProps?.isRecurring && e.extendedProps?.recurrenceId) {
-    // Evento ricorrente 
-    setEditMode("single");
-    
-  } else {
-    // Evento singolo
-    setShowEditBox(true);
-  }
-};
-
- const handleEditEvent = async (mode: 'single' | 'all' = 'single') => {
-   if (!selectedEvent) return;
-
-  const startDate = new Date(selectedEvent.start);
-  const endDate = new Date(selectedEvent.end);
-
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    alert("Errore: data di inizio o fine non valida.");
-    return;
-  }
-
-  
-  try {
-    if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
-      // modifica solo una occorrenza (override)
-     const payload = {
-    id: selectedEvent.id, // se è un override, esiste un ID specifico
-    title: selectedEvent.title,
-    start: startDate.toISOString(),
-    end: endDate.toISOString(),
-    location: selectedEvent.location || "",
-    allDay: selectedEvent.allDay
+    if (e.extendedProps?.isRecurring && e.extendedProps?.recurrenceId) {
+      // Evento ricorrente 
+      setEditMode("single");
+    } else {
+      // Evento singolo
+      setShowEditBox(true);
+    }
   };
 
-  await axios.put(`${API}/eventi`, payload, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  } 
-   else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
-  const newStartTime = new Date(selectedEvent.start);
-  const newEndTime = new Date(selectedEvent.end);
+  const handleEditEvent = async (mode: 'single' | 'all' = 'single') => {
+    if (!selectedEvent) return;
 
-  await axios.put(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`, {
-    updateData: {
-      title: selectedEvent.title,
-      location: selectedEvent.location || "",
-      allDay: selectedEvent.allDay || false,
-      startTime: {
-        hours: newStartTime.getHours(),
-        minutes: newStartTime.getMinutes(),
-      },
-      endTime: {
-        hours: newEndTime.getHours(),
-        minutes: newEndTime.getMinutes(),
+    const startDate = new Date(selectedEvent.start);
+    const endDate = new Date(selectedEvent.end);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      alert("Errore: data di inizio o fine non valida.");
+      return;
+    }
+
+    
+    try {
+      if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
+        // modifica solo una occorrenza (override)
+        const payload = {
+          id: selectedEvent.id, // se è un override, esiste un ID specifico
+          title: selectedEvent.title,
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+          location: selectedEvent.location || "",
+          allDay: selectedEvent.allDay
+        };
+
+        await axios.put(`${API}/eventi`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } 
+      else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
+        const newStartTime = new Date(selectedEvent.start);
+        const newEndTime = new Date(selectedEvent.end);
+
+        await axios.put(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`, {
+          updateData: {
+            title: selectedEvent.title,
+            location: selectedEvent.location || "",
+            allDay: selectedEvent.allDay || false,
+            startTime: {
+              hours: newStartTime.getHours(),
+              minutes: newStartTime.getMinutes(),
+            },
+            endTime: {
+              hours: newEndTime.getHours(),
+              minutes: newEndTime.getMinutes(),
+            }
+          }
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      } 
+      else if (selectedEvent.id && !selectedEvent.extendedProps?.recurrenceId) {
+        await axios.put(
+          `http://localhost:3000/api/auth/eventi`,
+          {
+            id: selectedEvent.id,
+            title: selectedEvent.title,
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+            location: selectedEvent.location || "",
+            allDay: selectedEvent.allDay || false,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        // aggiorna subito la lista (senza reload)
+      }
+
+      await fetchEvents();
+
+      alert("Evento modificato con successo!");
+      setSelectedEvent(null);
+      setShowEditBox(false);
+      setEditMode('single');
+    } catch (err) {
+      console.error("Errore durante la modifica:", err);
+      alert("Errore durante la modifica");
+    }
+  };
+
+  const handleDeleteEvent = async (mode: 'single' | 'all') => {
+    if (!selectedEvent) return;
+
+    try {
+      if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
+        await axios.delete(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}/occurrence`,
+          {
+            params: {  date: new Date(selectedEvent.start).toISOString() },
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+      } else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
+        // elimina tutta la serie
+        await axios.delete(
+          `${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } else if (selectedEvent.id) {
+        // elimina evento singolo
+        await axios.delete(
+          `${API}/eventi/${selectedEvent.id}`,
+          { 
+            headers: { Authorization: `Bearer ${token}` } 
+          });
+      }
+
+      // aggiorna subito la lista (senza reload)
+      await fetchEvents();
+
+      alert("Evento eliminato con successo!");
+      setSelectedEvent(null);
+      setShowEditBox(false);
+      setEditMode('single');
+
+    } catch (err) {
+      console.error("Errore durante l'eliminazione:", err);
+      alert("Errore durante l'eliminazione");
+    }
+  };
+
+
+  //TASK
+  // Funzione per aggiungere un’attività
+  const handleAddTask = async () => {
+    if (!newTask.title || !newTask.dueDate) {
+      alert("Titolo e scadenza obbligatori");
+      return;
+    }
+
+    if (!token) {
+      alert("Non sei autenticato. Fai login di nuovo.");
+      return;
+    }
+
+    try {
+      const res = await axios.post(`${API}/tasks`, newTask, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // risposta dal backend quindi aggiungo alla lista
+      const savedTask: Task = res.data;
+      setTasks((prev) => [...prev, savedTask]);
+
+      // reset campi input
+      setNewTask({ _id: "", title: "", startDate: "", dueDate: "", completed: false });
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error("Errore aggiunta task", err.response || err.message);
+        if (err.response?.status === 401) {
+          alert("Sessione scaduta o non valida. Fai login di nuovo.");
+        }
+      } else if (err instanceof Error) {
+        console.error("Errore generico:", err.message);
+      } else {
+        console.error("Errore sconosciuto", err);
       }
     }
-  }, { headers: { Authorization: `Bearer ${token}` } });
-} else if (selectedEvent.id && !selectedEvent.extendedProps?.recurrenceId) {
-     await axios.put(
-        `http://localhost:3000/api/auth/eventi`,
+  };
+
+  // Funzione per segnare completata
+  const toggleTaskCompletion = async (id: string) => {
+    try {
+      const task = tasks.find((t) => t._id === id); // <-- uso _id, non id
+      if (!task) return;
+
+      const res = await axios.put(
+        `${API}/tasks/${id}`,
+        { completed: !task.completed }, // mando solo la proprietà che cambia
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setTasks((prev) =>
+        prev.map((t) => (t._id === id ? res.data : t)) // aggiorno con quello che torna dal backend
+      );
+    } catch (err) {
+      console.error("Errore aggiornamento task", err);
+    }
+  };
+
+
+  //funzione per modificare le attività
+  const handleEditTask = async () => {
+    if (!selectedTask) return;
+    try {
+      await axios.put(
+        `http://localhost:3000/api/auth/tasks/${selectedTask._id}`,
         {
-          id: selectedEvent.id,
-      title: selectedEvent.title,
-      start: startDate.toISOString(),
-      end: endDate.toISOString(),
-      location: selectedEvent.location || "",
-      allDay: selectedEvent.allDay || false,
+          title: selectedTask.title,
+          startDate: selectedTask.startDate,
+          dueDate: selectedTask.dueDate,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-    
-    // aggiorna subito la lista (senza reload)
-   
-    }
 
-    await fetchEvents();
 
-    alert("Evento modificato con successo!");
-    setSelectedEvent(null);
-    setShowEditBox(false);
-    setEditMode('single');
-  } catch (err) {
-    console.error("Errore durante la modifica:", err);
-    alert("Errore durante la modifica");
-  }
-};
-
-  const handleDeleteEvent = async (mode: 'single' | 'all') => {
-  if (!selectedEvent) return;
-
-  try {
-   if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
-  await axios.delete(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}/occurrence`,
-    {
-      params: {  date: new Date(selectedEvent.start).toISOString() },
-      headers: { Authorization: `Bearer ${token}` }
-    }
+      alert("Task aggiornata con successo!");
+      setShowTaskEditBox(false);
+      setSelectedTask(null);
+      setTasks((prev) =>
+      prev.map((t) => (t._id === selectedTask._id ? selectedTask : t))
   );
+    } catch (err) {
+      console.error("Errore modifica task:", err);
+      alert("Errore durante la modifica della task");
+    }
+  };
 
-    } else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
-      // elimina tutta la serie
-      await axios.delete(
-        `${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    
-    }  else if (selectedEvent.id) {
-      // elimina evento singolo
-      await axios.delete(
-        `${API}/eventi/${selectedEvent.id}`,
-        { 
-          headers: { Authorization: `Bearer ${token}` } 
+  //funzione per eliminare le attività
+  const deleteTask = async (id: string) => {
+    try {
+      await axios.delete(`${API}/tasks/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      setTasks((prev) => prev.filter((t) => t._id !== id));
+    } catch (err) {
+      console.error("Errore eliminazione task", err);
     }
-
-    // aggiorna subito la lista (senza reload)
-    await fetchEvents();
-
-    alert("Evento eliminato con successo!");
-    setSelectedEvent(null);
-    setShowEditBox(false);
-    setEditMode('single');
-  } catch (err) {
-    console.error("Errore durante l'eliminazione:", err);
-    alert("Errore durante l'eliminazione");
-  }
-};
-
-
-//TASK
-// Funzione per aggiungere un’attività
-const handleAddTask = async () => {
- if (!newTask.title || !newTask.dueDate) {
-    alert("Titolo e scadenza obbligatori");
-    return;
-  }
-
-  if (!token) {
-    alert("Non sei autenticato. Fai login di nuovo.");
-    return;
-  }
-
-  try {
-    const res = await axios.post(`${API}/tasks`, newTask, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    // risposta dal backend quindi aggiungo alla lista
-    const savedTask: Task = res.data;
-    setTasks((prev) => [...prev, savedTask]);
-
-    // reset campi input
-    setNewTask({ _id: "", title: "", startDate: "", dueDate: "", completed: false });
-  } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-    console.error("Errore aggiunta task", err.response || err.message);
-    if (err.response?.status === 401) {
-      alert("Sessione scaduta o non valida. Fai login di nuovo.");
-    }
-  } else if (err instanceof Error) {
-    console.error("Errore generico:", err.message);
-  } else {
-    console.error("Errore sconosciuto", err);
-  }
-}
-};
-
-// Funzione per segnare completata
-const toggleTaskCompletion = async (id: string) => {
-  try {
-    const task = tasks.find((t) => t._id === id); // <-- uso _id, non id
-    if (!task) return;
-
-    const res = await axios.put(
-      `${API}/tasks/${id}`,
-      { completed: !task.completed }, // mando solo la proprietà che cambia
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    setTasks((prev) =>
-      prev.map((t) => (t._id === id ? res.data : t)) // aggiorno con quello che torna dal backend
-    );
-  } catch (err) {
-    console.error("Errore aggiornamento task", err);
-  }
-};
-
-
-//funzione per modificare le attività
-const handleEditTask = async () => {
-  if (!selectedTask) return;
-  try {
-    await axios.put(
-      `http://localhost:3000/api/auth/tasks/${selectedTask._id}`,
-      {
-        title: selectedTask.title,
-        startDate: selectedTask.startDate,
-        dueDate: selectedTask.dueDate,
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-
-    alert("Task aggiornata con successo!");
-    setShowTaskEditBox(false);
-    setSelectedTask(null);
-    setTasks((prev) =>
-    prev.map((t) => (t._id === selectedTask._id ? selectedTask : t))
-);
-  } catch (err) {
-    console.error("Errore modifica task:", err);
-    alert("Errore durante la modifica della task");
-  }
-};
-
-//funzione per eliminare le attività
-const deleteTask = async (id: string) => {
-  try {
-    await axios.delete(`${API}/tasks/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setTasks((prev) => prev.filter((t) => t._id !== id));
-  } catch (err) {
-    console.error("Errore eliminazione task", err);
-  }
-};
+  };
 
 
   return (
@@ -595,12 +597,15 @@ const deleteTask = async (id: string) => {
 
   <div className="calendar-container">
     <FullCalendar
+      ref = {calendarRef}
       plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
       headerToolbar={{
         left: 'today prev,next',
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,timeGridDay',
       }}
+      now={currentDate}
+      initialDate={currentDate}
       initialView="dayGridMonth"
       timeZone="local"
       events={events}

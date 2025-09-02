@@ -6,6 +6,7 @@ import Profilo from "./home/Profilo";
 import CalendarPage from "./home/CalendarPage";
 import Account from "./home/Account";
 import NotesPage from "./home/NotesPage";
+import TimeMachine from "./home/TimeMachine";
 import "./App.css";
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/note" element={<NotesPage/>} />
         <Route path="*" element={<Login />} />
+        <Route path="/timeMachine" element={<TimeMachine/>} />
       </Routes>
     </Router>
   );

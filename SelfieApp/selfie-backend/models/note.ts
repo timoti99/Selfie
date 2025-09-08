@@ -15,8 +15,9 @@ const NoteSchema = new Schema<INote>(
     title: { type: String, required: true },
     content: { type: String, required: true },
     categories: { type: [String], default: [] },
-  },
-  { timestamps: true } // genera automaticamente createdAt e updatedAt
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  }
 );
 
 export default mongoose.model<INote>("Note", NoteSchema);

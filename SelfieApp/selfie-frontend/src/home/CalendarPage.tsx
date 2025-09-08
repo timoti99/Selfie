@@ -204,11 +204,11 @@ const CalendarPage: React.FC = () => {
 
   //effect per modificare la data corrente
   useEffect(() => {
-    const api = calendarRef.current?.getApi();
-    if (api) {
-      api.gotoDate(currentDate);
-    }
-  }, [currentDate]);
+    if (calendarRef.current) {
+    const calendarApi = calendarRef.current.getApi();
+    calendarApi.setOption("now", () => currentDate);
+  }
+}, [currentDate]);
 
   const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
@@ -603,15 +603,20 @@ const CalendarPage: React.FC = () => {
         left: 'today prev,next',
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,timeGridDay',
-      }}
-      now={currentDate}
-      initialDate={currentDate}
+      }}             
+      initialDate={currentDate}  
       initialView="dayGridMonth"
       timeZone="local"
       events={events}
       dateClick={handleDateClick}
       height="auto"
       eventClick={(info) => handleEventClick(info)}
+       dayCellClassNames={(arg) => {
+    const cellDate = arg.date.toLocaleDateString("sv-SE");
+    const current = currentDate.toLocaleDateString("sv-SE");
+    return cellDate === current ? "custom-today" : "";
+  }}
+       
     />
      {(showEventBox || selectedEvent) && (<div className="overlay-background"
      onClick={() => {
@@ -1262,7 +1267,7 @@ const CalendarPage: React.FC = () => {
   <ul>
     {tasks.map((task) => {
       const isOverdue =
-        !task.completed && new Date(task.dueDate) < new Date();
+        !task.completed && new Date(task.dueDate) < currentDate;
       return (
        <li key={task._id} className="task-item">
   <span style={{ marginRight: "8px", fontSize: "0.9rem", color: "rgba(255,255,255,0.7)" }}>

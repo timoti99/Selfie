@@ -663,7 +663,7 @@ router.post("/notes", authenticateToken, async (req: AuthenticatedRequest, res: 
   if (!userId) return;
 
   try {
-    const { title, content, categories } = req.body;
+    const { title, content, categories, createdAt, updatedAt } = req.body;
     if (!title || !content) {
        res.status(400).json({ error: "Titolo e contenuto obbligatori" });
        return;
@@ -674,6 +674,8 @@ router.post("/notes", authenticateToken, async (req: AuthenticatedRequest, res: 
       title,
       content,
       categories: categories || [],
+        createdAt: createdAt ? new Date(createdAt) : new Date(),
+      updatedAt: updatedAt ? new Date(updatedAt) : new Date(),
     });
 
     await newNote.save();
@@ -691,6 +693,9 @@ router.put("/notes/:id", authenticateToken, async (req: AuthenticatedRequest, re
   try {
     const { id } = req.params;
     const update = req.body ?? {};
+   if (!update.updatedAt) {
+      update.updatedAt = new Date();
+    }
     const updated = await Note.findOneAndUpdate({ _id: id, userId }, update, { new: true });
     if (!updated) 
     res.status(404).json({ error: "Nota non trovata" });

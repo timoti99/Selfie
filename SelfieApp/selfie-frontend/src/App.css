@@ -189,13 +189,6 @@ body, html {
   font-weight: bold;
 }
 
-/* Eventi normali */
-.fc-event.event-normal {
-  background-color: #3788d8 !important; 
-  border: none !important;
-  color: white !important;
-}
-
 /* Eventi ricorrenti */
 .fc-event.event-recurring {
 background-color: #ff0000 !important; /* rosso pieno */
@@ -221,6 +214,59 @@ background-color: #ff0000 !important; /* rosso pieno */
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: unset !important;
+}
+
+/* pop-up +more eventi */
+.fc-popover {
+  background: #1e1e1e !important; /* scuro come il calendario */
+  border: 1px solid #333 !important;
+  border-radius: 8px !important;
+  padding: 10px !important;
+  color: #fff !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8) !important;
+  z-index: 9999;
+}
+
+/* Titolo del popover */
+.fc-popover .fc-popover-title {
+  background: #2a2a2a !important;
+  color: #fff !important;
+  font-weight: bold;
+  padding: 5px 8px;
+  border-bottom: 1px solid #444;
+  border-radius: 6px 6px 0 0;
+}
+
+/* Eventi dentro al popover */
+.fc-popover .fc-event {
+  background: #007bff !important; /* blu acceso */
+  border: none !important;
+  border-radius: 5px;
+  padding: 4px 8px;
+  margin: 3px 0;
+  color: #fff !important;
+  font-size: 0.85rem;
+  white-space: normal;
+}
+
+.fc-more-link {
+  background: #2a2a2a !important; /* grigio scuro come il calendario */
+  color: #fff !important;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+/* Hover sul "+more" */
+.fc-more-link:hover {
+  background: #444 !important; /* leggermente più chiaro */
+}
+
+/* Per evitare sfondo trasparente nel giorno corrente */
+.fc-day-today .fc-popover {
+  background: #1e1e1e !important;
 }
 
 /* note home */

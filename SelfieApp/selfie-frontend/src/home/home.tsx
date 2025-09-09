@@ -77,7 +77,10 @@ const Home: React.FC = () => {
             seriesParentId: ev.seriesParentId ?? ev.overridesOriginalId ?? null,
             isCancelled: !!ev.isCancelled,
           },
-          className: ev.isRecurring ? "event-recurring" : "event-normal",
+          className: ev.isRecurring ? "event-recurring" 
+          : ev.allDay
+            ? "event-normal"
+            : "event-timed",
         }));
 
         const tasksAsEvents: EventInput[] = resTasks.data.flatMap((t) => {
@@ -205,44 +208,55 @@ const Home: React.FC = () => {
           <div style={{ marginTop: "1rem" }}>
             <h3>📌 Prossimi Eventi</h3>
             {nextEvents.length > 0 ? (
-              nextEvents.map((ev) => {
-                const now = currentDate;
-                const isOngoing =
-                  new Date(ev.start) <= now && (!ev.end || new Date(ev.end) >= now);
-                return (
-                  <p key={ev._id} style={{ color: isOngoing ? "red" : "inherit" }}>
-                    <strong>{ev.title}</strong>{" "}
-                    {new Date(ev.start).toLocaleString()}
-                    {ev.end && ` → ${new Date(ev.end).toLocaleString()}`}
-                    {isOngoing && " (in corso)"}
-                  </p>
-                );
-              })
-            ) : (
-              <p>Nessun evento in programma</p>
-            )}
+  nextEvents.map((ev) => {
+    const now = currentDate;
+    const start = new Date(ev.start);
+    const end = ev.end ? new Date(ev.end) : null;
+
+    const isOngoing =
+  (!ev.allDay &&
+    start <= now &&
+    (!end || end >= now)) ||
+  (ev.allDay &&
+    start.getFullYear() === now.getFullYear() &&
+    start.getMonth() === now.getMonth() &&
+    start.getDate() === now.getDate());
+    
+    return (
+      <p key={ev._id} style={{ color: isOngoing ? "red" : "inherit" }}>
+        <strong>{ev.title}</strong>{" "}
+        {start.toLocaleString()}
+        {end && ` → ${end.toLocaleString()}`}
+        {isOngoing && " (in corso)"}
+      </p>
+    );
+  })
+) : (
+  <p>Nessun evento in programma</p>
+)}
 
             <h3>✅ Prossime Attività</h3>
             {nextTasks.length > 0 ? (
-             nextTasks.map((t) => {
-                const deadline = new Date(t.scadenza ?? t.dueDate ?? "");
-                const now = currentDate;
-                const isOngoing =
-                  !!t.startDate && new Date(t.startDate) <= now && deadline >= now;
-                return (
-                  <p
-                    key={t._id}
-                    style={{ color: isOngoing ? "red" : "inherit" }}
-                  >
-                    <strong>{t.nome ?? t.title ?? "Attività"}</strong>{" "}
-                    (scadenza: {deadline.toLocaleDateString()})
-                    {isOngoing && " (in corso)"}
-                  </p>
-                );
-              })
-            ) : (
-              <p>Nessuna attività in programma</p>
-            )}
+  nextTasks.map((t) => {
+    const start = t.startDate ? new Date(t.startDate) : null;
+    const deadline = new Date(t.scadenza ?? t.dueDate ?? "");
+    const now = currentDate;
+
+    const isOngoing =
+      !!start && start <= now && deadline >= now;
+
+    return (
+      <p key={t._id} style={{ color: isOngoing ? "red" : "inherit" }}>
+        <strong>{t.nome ?? t.title ?? "Attività"}</strong>{" "}
+        {start && `(inizio: ${start.toLocaleDateString()}) `}
+        (scadenza: {deadline.toLocaleDateString()})
+        {isOngoing && " (in corso)"}
+      </p>
+    );
+  })
+) : (
+  <p>Nessuna attività in programma</p>
+)}
           </div>
         </div>
 

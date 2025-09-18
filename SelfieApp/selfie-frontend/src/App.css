@@ -1184,6 +1184,16 @@ background-color: #ff0000 !important; /* rosso pieno */
   font-size: 1.2rem;
 }
 
+.note-card ul {
+  list-style-position: inside; 
+  padding-left: 0.8rem;       
+  margin: 0.5rem 0;           
+}
+
+.note-card li {
+  margin-left: 0.5rem; 
+}
+
 .note-actions {
    margin-top: auto;
   display: flex;

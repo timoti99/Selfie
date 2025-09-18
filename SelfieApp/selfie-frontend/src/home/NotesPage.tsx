@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
 import { TimeMachineContext } from "../timeContext";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 import axios from "axios";
 import Navbar from "./Navbar";
 import "../App.css";
+
+marked.setOptions({ async: false });
 
 const API = "http://localhost:3000/api/auth";
 
@@ -17,6 +21,7 @@ type Note = {
 
 type SortKey = "date" | "title" | "length";
 
+
 const NotesPage: React.FC = () => {
   const { currentDate } = useContext(TimeMachineContext);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -28,6 +33,7 @@ const NotesPage: React.FC = () => {
   });
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+
 
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
@@ -142,7 +148,7 @@ const NotesPage: React.FC = () => {
       <Navbar />
       <div className="notes-header">
         <h1>Benvenuto nella pagina delle note</h1>
-        <p className="subtitle">📝 Crea una nuova nota 📝</p>
+        <p className="subtitle">📝 Crea una nuova nota(anche in markdown) 📝</p>
       </div>
 
       {/* Form nuova nota */}
@@ -166,7 +172,7 @@ const NotesPage: React.FC = () => {
           }
         />
         <textarea
-          placeholder="Scrivi qui il contenuto..."
+          placeholder="Scrivi qui il contenuto(anche in markdown)..."
           value={newNote.content}
           onChange={(e) =>
             setNewNote({ ...newNote, content: e.target.value })
@@ -236,8 +242,16 @@ const NotesPage: React.FC = () => {
           <div key={note._id} className="note-card">
             <h3>{note.title}</h3>
             <div className="note-content">
-              <p>{note.content.slice(0, 200)}...</p>
-            </div>
+             <div
+                dangerouslySetInnerHTML={{
+                 __html: DOMPurify.sanitize(
+                   marked(
+                     note.content.slice(0, 200) + (note.content.length > 200 ? "..." : "")
+                  ) as string
+                 ),
+               }}
+              /> 
+          </div>
             <div className="note-meta">
               <small>
                 Categorie: {note.categories.join(", ") || "Nessuna"} <br />

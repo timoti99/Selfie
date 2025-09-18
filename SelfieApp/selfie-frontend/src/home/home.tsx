@@ -2,6 +2,8 @@ import React, { useEffect, useState, useContext, useRef } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import axios from "axios";
+import DOMPurify from "dompurify";
+import { marked } from "marked";
 import { TimeMachineContext } from "../timeContext";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -268,7 +270,15 @@ const Home: React.FC = () => {
     <div className="note-card">
       <h3 className="note-subtitle">Ultima nota creata</h3>
       <p className="note-title">{lastCreatedNote.title}</p>
-      <p>{lastCreatedNote.content.slice(0, 120)}...</p>
+      <div
+      className="note-preview"
+      dangerouslySetInnerHTML={{
+        __html: DOMPurify.sanitize(
+          marked(lastCreatedNote.content.slice(0, 120) + (lastCreatedNote.content.length > 120 ? "..." : "")
+        ) as string
+        ),
+      }}
+    />
       <small>
         Creata il{" "}
         {new Date(lastCreatedNote.createdAt).toLocaleString()}
@@ -280,7 +290,15 @@ const Home: React.FC = () => {
     <div className="note-card">
       <h3 className="note-subtitle">Ultima nota modificata</h3>
       <p className="note-title">{lastModifiedNote.title}</p>
-      <p>{lastModifiedNote.content.slice(0, 120)}...</p>
+       <div
+      className="note-preview"
+      dangerouslySetInnerHTML={{
+        __html: DOMPurify.sanitize(
+          marked(lastModifiedNote.content.slice(0, 120) + (lastModifiedNote.content.length > 120 ? "..." : "")
+        ) as string
+        ),
+      }}
+    />
       <small>
         Modificata il{" "}
         {new Date(lastModifiedNote.updatedAt).toLocaleString()}

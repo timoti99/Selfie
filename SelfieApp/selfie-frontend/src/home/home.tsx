@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
+import "../home.css";
 import axios from "axios";
 import DOMPurify from "dompurify";
 import { marked } from "marked";

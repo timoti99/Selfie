@@ -11,6 +11,7 @@ import Modal from 'react-modal';
 import Navbar from "./Navbar";
 import axios from "axios";
 import '../App.css';
+import '../calendarPage.css';
 import { TimeMachineContext } from '../timeContext';
 
 const API = "http://localhost:3000/api/auth";

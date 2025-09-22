@@ -5,6 +5,7 @@ import DOMPurify from "dompurify";
 import axios from "axios";
 import Navbar from "./Navbar";
 import "../App.css";
+import "../notePage.css";
 
 marked.setOptions({ async: false });
 

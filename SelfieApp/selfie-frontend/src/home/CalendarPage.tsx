@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import '../App.css';
 import '../calendarPage.css';
 import { TimeMachineContext } from '../timeContext';
+import Evento from './Evento'
 
 const API = "http://localhost:3000/api/auth";
 
@@ -121,7 +122,7 @@ const mapTasksToEvents = (tsks: Task[]) =>
         taskData: t,
       },
     },
-  ]);
+]);
 
 const CalendarPage: React.FC = () => {
   const [events, setEvents] = useState<EventInput[]>([]);
@@ -129,7 +130,6 @@ const CalendarPage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<SelectedEvent | null>(null);
   const [showEditBox, setShowEditBox] = useState(false);
-  const [editMode, setEditMode] = useState<'single' | 'all'>('single');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [serverEventsMapped, setServerEventsMapped] = useState<EventInput[]>([]);
 
@@ -140,11 +140,11 @@ const CalendarPage: React.FC = () => {
   const [showTaskEditBox, setShowTaskEditBox] = useState(false);
   const [showPomodoroBox, setShowPomodoroBox] = useState(false);
   const [newPomodoro, setNewPomodoro] = useState({
-  date: "",
-  cyclesPlanned: 5,
-  studyMinutes: 30,
-  breakMinutes: 5,
-});
+    date: "",
+    cyclesPlanned: 5,
+    studyMinutes: 30,
+    breakMinutes: 5,
+  });
   const [selectedPomodoro, setSelectedPomodoro] = useState<PomodoroEvent | null>(null);
   const [showPomodoroActionBox, setShowPomodoroActionBox] = useState(false);
 
@@ -178,119 +178,114 @@ const CalendarPage: React.FC = () => {
 
   
   const fetchEvents = useCallback(async () => {
-  if (!token) return;
-  try {
-    const res = await axios.get(`${API}/eventi`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API}/eventi`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    const serverEvents: EventFromServer[] = res.data;
+      const serverEvents: EventFromServer[] = res.data;
 
-    const mappedServer: EventInput[] = serverEvents.map((ev) => ({
-      id: String(ev._id),
-      title: ev.title,
-      start: ev.start,
-      end: ev.end,
-      allDay: !!ev.allDay,
-      extendedProps: {
-        location: ev.location,
-        durationMinutes: ev.durationMinutes,
-        isRecurring: ev.isRecurring,
-        overridesOriginalId: ev.overridesOriginalId,
-        recurrenceId: ev.recurrenceId,
-        seriesParentId: ev.seriesParentId ?? ev.overridesOriginalId ?? null,
-      },
-      className: ev.isRecurring ? "recurring-event" : "single-event"
-    }));
+      const mappedServer: EventInput[] = serverEvents.map((ev) => ({
+        id: String(ev._id),
+        title: ev.title,
+        start: ev.start,
+        end: ev.end,
+        allDay: !!ev.allDay,
+        extendedProps: {
+          location: ev.location,
+          durationMinutes: ev.durationMinutes,
+          isRecurring: ev.isRecurring,
+          overridesOriginalId: ev.overridesOriginalId,
+          recurrenceId: ev.recurrenceId,
+          seriesParentId: ev.seriesParentId ?? ev.overridesOriginalId ?? null,
+        },
+        className: ev.isRecurring ? "recurring-event" : "single-event"
+      }));
 
-    // solo imposto la sorgente "server"
-    setServerEventsMapped(mappedServer);
-  } catch (err) {
-    console.error("Errore nel fetch degli eventi:", err);
-  }
-}, [token]);
+      // solo imposto la sorgente "server"
+      setServerEventsMapped(mappedServer);
+    } catch (err) {
+      console.error("Errore nel fetch degli eventi:", err);
+    }
+  }, [token]);
 
-const fetchTasks = useCallback(async () => {
-  if (!token) return;
-  try {
-    const res = await axios.get<Task[]>(`${API}/tasks`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setTasks(res.data);
-  } catch (err) {
-    console.error("Errore fetch tasks", err);
-  }
-}, [token]);
+  const fetchTasks = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get<Task[]>(`${API}/tasks`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTasks(res.data);
+    } catch (err) {
+      console.error("Errore fetch tasks", err);
+    }
+  }, [token]);
 
   const fetchPomodoro = useCallback(async () => {
-  if (!token) return;
-try {
-  console.log("[fetchPomodoro] start - currentDate:", currentDate);
+    if (!token) return;
+    try {
+      console.log("[fetchPomodoro] start - currentDate:", currentDate);
 
-  
-  const putUrl = `${API}/pomodoro/completeDayAll`;
-  console.log("[fetchPomodoro] calling PUT", putUrl);
+      const putUrl = `${API}/pomodoro/completeDayAll`;
+      console.log("[fetchPomodoro] calling PUT", putUrl);
 
-  const putRes = await axios.put(
-    putUrl,
-    { currentDate }, 
-    {
-      headers: { Authorization: `Bearer ${token}` },
+      const putRes = await axios.put(putUrl,{ currentDate }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      console.log("[fetchPomodoro] PUT response:", putRes.data);
+
+      const res = await axios.get<PomodoroFromServer[]>(`${API}/pomodoro`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("[fetchPomodoro] GET pomodoro count:", res.data.length);
+
+      const mappedPomodoro: EventInput[] = res.data.map((p) => ({
+        id: String(p._id),
+        title: p.title || "🍅 Pomodoro",
+        // normalizziamo a inizio giornata 
+        start: dayjs(p.date).startOf("day").toISOString(),
+        end: dayjs(p.date).startOf("day").toISOString(),
+        allDay: true,
+        extendedProps: {
+          type: "pomodoro",
+          pomodoroData: p,
+        },
+        className: "pomodoro-event",
+      }));
+
+      setPomodoroEvents(mappedPomodoro);
+    } catch (err) {
+      console.error("Errore caricamento Pomodoro", err);
     }
-  );
-  console.log("[fetchPomodoro] PUT response:", putRes.data);
+  }, [token, currentDate]);
 
-  
-  const res = await axios.get<PomodoroFromServer[]>(`${API}/pomodoro`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  console.log("[fetchPomodoro] GET pomodoro count:", res.data.length);
+  useEffect(() => {
+    fetchPomodoro();
+  }, [fetchPomodoro, currentDate]);
 
-  const mappedPomodoro: EventInput[] = res.data.map((p) => ({
-    id: String(p._id),
-    title: p.title || "🍅 Pomodoro",
-    // normalizziamo a inizio giornata 
-    start: dayjs(p.date).startOf("day").toISOString(),
-    end: dayjs(p.date).startOf("day").toISOString(),
-    allDay: true,
-    extendedProps: {
-      type: "pomodoro",
-      pomodoroData: p,
-    },
-    className: "pomodoro-event",
-  }));
-
-  setPomodoroEvents(mappedPomodoro);
-} catch (err) {
-  console.error("Errore caricamento Pomodoro", err);
-}
-}, [token, currentDate]);
-
-useEffect(() => {
-  fetchPomodoro();
-}, [fetchPomodoro, currentDate]);
-
- useEffect(() => {
-  // unisco in ordine: eventi server, tasks eventi, poi pomodoro
-  setEvents([
-    ...serverEventsMapped,
-    ...mapTasksToEvents(tasks),
-    ...pomodoroEvents,
-  ]);
-}, [serverEventsMapped, tasks, pomodoroEvents]);
+  useEffect(() => {
+    // unisco in ordine: eventi server, tasks eventi, poi pomodoro
+    setEvents([
+      ...serverEventsMapped,
+      ...mapTasksToEvents(tasks),
+      ...pomodoroEvents,
+    ]);
+  }, [serverEventsMapped, tasks, pomodoroEvents]);
 
   //effect per modificare la data corrente
   useEffect(() => {
     if (calendarRef.current) {
-    const calendarApi = calendarRef.current.getApi();
-    calendarApi.setOption("now", () => currentDate);
-  }
-}, [currentDate]);
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.setOption("now", () => currentDate);
+    }
+  }, [currentDate]);
 
-useEffect(() => {
-  fetchEvents();
-  fetchTasks();
-}, [fetchEvents, fetchTasks]);
+  useEffect(() => {
+    fetchEvents();
+    fetchTasks();
+  }, [fetchEvents, fetchTasks]);
 
   const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
@@ -380,47 +375,47 @@ useEffect(() => {
   };
 
   const handleAddPomodoro = async () => {
-  if (!token) return;
-  try {
-    await axios.post(
-      `${API}/pomodoro`,
-      {
-        date: newPomodoro.date,
-        cyclesPlanned: newPomodoro.cyclesPlanned,
-        studyMinutes: newPomodoro.studyMinutes,
-        breakMinutes: newPomodoro.breakMinutes,
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    if (!token) return;
+    try {
+      await axios.post(
+        `${API}/pomodoro`,
+        {
+          date: newPomodoro.date,
+          cyclesPlanned: newPomodoro.cyclesPlanned,
+          studyMinutes: newPomodoro.studyMinutes,
+          breakMinutes: newPomodoro.breakMinutes,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-   
-    await fetchPomodoro();
+    
+      await fetchPomodoro();
 
-    setShowPomodoroBox(false);
-    setNewPomodoro({
-      date: "",
-      cyclesPlanned: 5,
-      studyMinutes: 30,
-      breakMinutes: 5,
-    });
-  } catch (err) {
-    console.error("Errore creazione pomodoro", err);
-  }
-};
+      setShowPomodoroBox(false);
+      setNewPomodoro({
+        date: "",
+        cyclesPlanned: 5,
+        studyMinutes: 30,
+        breakMinutes: 5,
+      });
+    } catch (err) {
+      console.error("Errore creazione pomodoro", err);
+    }
+  };
 
-const handleCompletePomodoro = async () => {
-  if (!selectedPomodoro) return;
-  try {
-    await axios.delete(`${API}/pomodoro/${selectedPomodoro._id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchPomodoro();
-    setShowPomodoroActionBox(false);
-    setSelectedPomodoro(null);
-  } catch (err) {
-    console.error("Errore completamento Pomodoro", err);
-  }
-};
+  const handleCompletePomodoro = async () => {
+    if (!selectedPomodoro) return;
+    try {
+      await axios.delete(`${API}/pomodoro/${selectedPomodoro._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchPomodoro();
+      setShowPomodoroActionBox(false);
+      setSelectedPomodoro(null);
+    } catch (err) {
+      console.error("Errore completamento Pomodoro", err);
+    }
+  };
 
   const navigate = useNavigate();
 
@@ -465,131 +460,13 @@ const handleCompletePomodoro = async () => {
       extendedProps: e.extendedProps
     });
 
-    if (e.extendedProps?.isRecurring && e.extendedProps?.recurrenceId) {
-      // Evento ricorrente 
-      setEditMode("single");
-    } else {
-      // Evento singolo
-      setShowEditBox(true);
-    }
+    setShowEditBox(true);
   };
 
-  const handleEditEvent = async (mode: 'single' | 'all' = 'single') => {
-    if (!selectedEvent) return;
-
-    const startDate = new Date(selectedEvent.start);
-    const endDate = new Date(selectedEvent.end);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      alert("Errore: data di inizio o fine non valida.");
-      return;
-    }
-
-    
-    try {
-      if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
-        // modifica solo una occorrenza (override)
-        const payload = {
-          id: selectedEvent.id, // se è un override esiste un ID specifico
-          title: selectedEvent.title,
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          location: selectedEvent.location || "",
-          allDay: selectedEvent.allDay
-        };
-
-        await axios.put(`${API}/eventi`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } 
-      else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
-        const newStartTime = new Date(selectedEvent.start);
-        const newEndTime = new Date(selectedEvent.end);
-
-        await axios.put(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`, {
-          updateData: {
-            title: selectedEvent.title,
-            location: selectedEvent.location || "",
-            allDay: selectedEvent.allDay || false,
-            startTime: {
-              hours: newStartTime.getHours(),
-              minutes: newStartTime.getMinutes(),
-            },
-            endTime: {
-              hours: newEndTime.getHours(),
-              minutes: newEndTime.getMinutes(),
-            }
-          }
-        }, { headers: { Authorization: `Bearer ${token}` } });
-      } 
-      else if (selectedEvent.id && !selectedEvent.extendedProps?.recurrenceId) {
-        await axios.put(
-          `http://localhost:3000/api/auth/eventi`,
-          {
-            id: selectedEvent.id,
-            title: selectedEvent.title,
-            start: startDate.toISOString(),
-            end: endDate.toISOString(),
-            location: selectedEvent.location || "",
-            allDay: selectedEvent.allDay || false,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-      }
-
-      await fetchEvents();
-
-      alert("Evento modificato con successo!");
-      setSelectedEvent(null);
-      setShowEditBox(false);
-      setEditMode('single');
-    } catch (err) {
-      console.error("Errore durante la modifica:", err);
-      alert("Errore durante la modifica");
-    }
-  };
-
-  const handleDeleteEvent = async (mode: 'single' | 'all') => {
-    if (!selectedEvent) return;
-
-    try {
-      if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
-        await axios.delete(`${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}/occurrence`,
-          {
-            params: {  date: new Date(selectedEvent.start).toISOString() },
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-      } else if (mode === "all" && selectedEvent.extendedProps?.recurrenceId) {
-        // elimina tutta la serie
-        await axios.delete(
-          `${API}/eventi/ricorrenti/${selectedEvent.extendedProps.recurrenceId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-      } else if (selectedEvent.id) {
-        // elimina evento singolo
-        await axios.delete(
-          `${API}/eventi/${selectedEvent.id}`,
-          { 
-            headers: { Authorization: `Bearer ${token}` } 
-          });
-      }
-
-      // aggiorna subito la lista
-      await fetchEvents();
-
-      alert("Evento eliminato con successo!");
-      setSelectedEvent(null);
-      setShowEditBox(false);
-      setEditMode('single');
-
-    } catch (err) {
-      console.error("Errore durante l'eliminazione:", err);
-      alert("Errore durante l'eliminazione");
-    }
-  };
-
+  const handleCloseForm = () => {
+    setSelectedEvent(null);
+    setShowEditBox(false);
+  }
 
   //TASK
   // Funzione per aggiungere un’attività
@@ -692,852 +569,456 @@ const handleCompletePomodoro = async () => {
 
   return (
     <div className="calendar-page-container">
-  <Navbar />
+    <Navbar />
 
-<div className="calendar-header">
-    <h2>Benvenuto nel tuo calendario personale</h2>
+    <div className="calendar-header">
+      <h2>Benvenuto nel tuo calendario personale</h2>
 
-    <div className="calendar-instructions">
-      <div className="instructions-left">
-        <p>Eventi:</p>
-        <p>Clicca su una data o sul bottone in basso per creare un nuovo evento.</p>
-        <p>Oppure clicca su un evento già esistente per modificarlo o eliminarlo.</p>
+      <div className="calendar-instructions">
+        <div className="instructions-left">
+          <p>Eventi:</p>
+          <p>Clicca su una data o sul bottone in basso per creare un nuovo evento.</p>
+          <p>Oppure clicca su un evento già esistente per modificarlo o eliminarlo.</p>
 
-        <h4>Legenda calendario:</h4>
-        <ul>
-          <li>🔵 Evento con orario specifico</li>
-          <li>🟥 Evento ricorrente</li>
-          <li>🟩 Attività</li>
-        </ul>
-      </div>
+          <h4>Legenda calendario:</h4>
+          <ul>
+            <li>🔵 Evento con orario specifico</li>
+            <li>🟥 Evento ricorrente</li>
+            <li>🟩 Attività</li>
+          </ul>
+        </div>
 
-      <div className="instructions-right">
-        <p>Attività:</p>
-        <p>
-          Clicca sul pulsante in basso per creare una nuova Attività 
-        </p>
-        <p>
-          oppure cliccane una già esistente per modificarla.
-        </p>
-        <p>
-          🟩 (verde chiaro) data inizio, (verde scuro) data scadenza, 🔳 (grigio) Attività completata.
-        </p>
-        <p>
-          Clicca sulla ❌ nella lista in basso per eliminare l'attività dal calendario.
-        </p>
-      </div>
-    </div>
-  </div>
-
-
-  <div className="calendar-container">
-    <FullCalendar
-      ref = {calendarRef}
-      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-      headerToolbar={{
-        left: 'today prev,next',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,timeGridDay',
-      }}             
-      initialDate={currentDate}  
-      initialView="dayGridMonth"
-      timeZone="local"
-      events={events}
-      dateClick={handleDateClick}
-      height="auto"
-      eventClick={(info) => handleEventClick(info)}
-       dayCellClassNames={(arg) => {
-    const cellDate = arg.date.toLocaleDateString("sv-SE");
-    const current = currentDate.toLocaleDateString("sv-SE");
-    return cellDate === current ? "custom-today" : "";
-  }}
-       
-    />
-     {(showEventBox || selectedEvent) && (<div className="overlay-background"
-     onClick={() => {
-      setShowEventBox(false);
-      setShowEditBox(false);
-      setSelectedEvent(null);
-     }} 
-     />
-     )}
-  </div>
-
-
-  { showEventBox && (
-    <div className="eventi-container">
-      <h2 className="eventi-title">Nuovo Evento - {selectedDate}</h2>
-      <div className="event-card">
-        <input
-          type="text"
-          className="input-field"
-          placeholder="Titolo"
-          value={newEvent.title}
-          onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-        />
-       <input
-  type="datetime-local"
-  className="input-field"
-  value={
-    newEvent.start
-      ? new Date(new Date(newEvent.start).getTime() - new Date(newEvent.start).getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16)
-      : ""
-  }
-  onChange={(e) => {
-    const date = new Date(e.target.value);
-    setNewEvent((prev) => ({ ...prev, start: date.toISOString() })); 
-  }}
-/>
-
-<input
-  type="datetime-local"
-  className="input-field"
-  value={
-    newEvent.end
-      ? new Date(new Date(newEvent.end).getTime() - new Date(newEvent.end).getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16)
-      : ""
-  }
-  onChange={(e) => {
-    const date = new Date(e.target.value);
-    setNewEvent((prev) => ({ ...prev, end: date.toISOString() })); 
-  }}
-/>
-        <input
-          type="text"
-          className="input-field"
-          placeholder="Luogo"
-          value={newEvent.location}
-          onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-        />
-
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={newEvent.allDay}
-            onChange={(e) => setNewEvent({ ...newEvent, allDay: e.target.checked })}
-          />
-          Evento per tutta la giornata
-        </label>
-
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={newEvent.isRecurring}
-            onChange={(e) =>
-              setNewEvent({ ...newEvent, isRecurring: e.target.checked })
-            }
-          />
-          Evento ripetibile
-        </label>
-
-
-
-        {newEvent.isRecurring && (
-          <div className="recurrence-section">
-            <label className="label-select">Frequenza:</label>
-            <select
-              className="select-field"
-              value={newEvent.recurrence.frequency}
-              onChange={(e) =>
-                setNewEvent({
-                  ...newEvent,
-                  recurrence: {
-                    ...newEvent.recurrence,
-                    frequency: e.target.value,
-                  },
-                })
-              }
-            >
-              <option value="">Seleziona frequenza</option>
-              <option value="daily">Ogni giorno</option>
-              <option value="weekly">Ogni settimana</option>
-              <option value="monthly">Ogni mese</option>
-            </select>
-
-            
-
-           <label className="label-date">Fino al</label>
-           <input
-           type="date"
-           className="input-field"
-           value={newEvent.recurrence.repeatUntil}
-           onChange={(e) => setNewEvent({
-            ...newEvent,
-            recurrence: {
-              ...newEvent.recurrence,
-              repeatUntil: e.target.value
-            },
-           })
-          }
-           />
-          </div>
-        )}
-
-        <div className="event-actions">
-          <button className="event-btn edit-btn" onClick={handleAddEvent}>
-            Aggiungi Evento
-          </button>
-          <button
-            className="event-btn delete-btn"
-            onClick={() => setShowEventBox(false)}
-          >
-            Annulla
-          </button>
+        <div className="instructions-right">
+          <p>Attività:</p>
+          <p>
+            Clicca sul pulsante in basso per creare una nuova Attività 
+          </p>
+          <p>
+            oppure cliccane una già esistente per modificarla.
+          </p>
+          <p>
+            🟩 (verde chiaro) data inizio, (verde scuro) data scadenza, 🔳 (grigio) Attività completata.
+          </p>
+          <p>
+            Clicca sulla ❌ nella lista in basso per eliminare l'attività dal calendario.
+          </p>
         </div>
       </div>
     </div>
-  )}
-
-  {showTaskBox && (
-  <div className="event-box task-box">
-    <h3>Nuova Attività</h3>
-
-    {/* Titolo */}
-    <label>
-    Titolo:
-    <input
-      type="text"
-      value={newTask.title}
-      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-      className="input-field"
-    />
-  </label>
 
 
-    {/* Data di inizio */}
-   <label>
-    Data inizio:
-    <input
-      type="date"
-      value={newTask.startDate}
-      onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
-      className="input-field"
-    />
-  </label>
-
-{/* Data di scadenza */}
-    <label>
-    Scadenza:
-    <input
-      type="date"
-      value={newTask.dueDate}
-      onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-      className="input-field"
-    />
-  </label>
-
-    <button onClick={handleAddTask}>Aggiungi Attività</button>
-    <button onClick={() => setShowTaskBox(false)}>Chiudi</button>
-  </div>
-)}
-
-{showPomodoroBox && (
-  <>
-  <div className="overlay-background" onClick={() => setShowPomodoroBox(false)} />
-  <div className="event-box pomodoro-box">
-    <h3>Nuovo Pomodoro</h3>
-
-    <label>
-      Data inizio:
-      <input
-        type="datetime-local"
-        value={newPomodoro.date}
-        onChange={(e) =>
-          setNewPomodoro({ ...newPomodoro, date: e.target.value })
-        }
+    <div className="calendar-container">
+      <FullCalendar
+        ref = {calendarRef}
+        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+        headerToolbar={{
+          left: 'today prev,next',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay',
+        }}             
+        initialDate={currentDate}  
+        initialView="dayGridMonth"
+        timeZone="local"
+        events={events}
+        dateClick={handleDateClick}
+        height="auto"
+        eventClick={(info) => handleEventClick(info)}
+        dayCellClassNames={(arg) => {
+          const cellDate = arg.date.toLocaleDateString("sv-SE");
+          const current = currentDate.toLocaleDateString("sv-SE");
+          return cellDate === current ? "custom-today" : "";
+        }}
       />
-    </label>
 
-    <label>
-      Minuti studio:
-      <input
-        type="number"
-        min={1}
-        value={newPomodoro.studyMinutes}
-        onChange={(e) =>
-          setNewPomodoro({
-            ...newPomodoro,
-            studyMinutes: Number(e.target.value),
-          })
-        }
-      />
-    </label>
-
-    <label>
-      Minuti pausa:
-      <input
-        type="number"
-        min={1}
-        value={newPomodoro.breakMinutes}
-        onChange={(e) =>
-          setNewPomodoro({
-            ...newPomodoro,
-            breakMinutes: Number(e.target.value),
-          })
-        }
-      />
-    </label>
-
-    <label>
-      Cicli:
-      <input
-        type="number"
-        min={1}
-        value={newPomodoro.cyclesPlanned}
-        onChange={(e) =>
-          setNewPomodoro({
-            ...newPomodoro,
-            cyclesPlanned: Number(e.target.value),
-          })
-        }
-      />
-    </label>
-
-    <button onClick={handleAddPomodoro}>Aggiungi Pomodoro</button>
-    <button onClick={() => setShowPomodoroBox(false)}>Annulla</button>
-  </div>
-  </>
-)}
-
-{showPomodoroActionBox && selectedPomodoro && (
-  <div className="overlay-background" onClick={() => setShowPomodoroActionBox(false)} />
-)}
-
-{showPomodoroActionBox && selectedPomodoro && (
-  <div className="event-box pomodoro-box">
-    <h3>Pomodoro</h3>
-    <p><strong>Data:</strong> {new Date(selectedPomodoro.date).toLocaleString()}</p>
-    <p><strong>Cicli:</strong> {selectedPomodoro.cyclesPlanned} (completati {selectedPomodoro.cyclesCompleted})</p>
-    <p><strong>Studio:</strong> {selectedPomodoro.studyMinutes} min, <strong>Pausa:</strong> {selectedPomodoro.breakMinutes} min</p>
-
-    <button onClick={() => navigate("/pomodoro")}>Apri Pomodoro</button>
-    <button className="pomodoro-complete-btn" onClick={handleCompletePomodoro}>
-  Pomodoro Completato(elimina dal calendario)
-   </button>
-    <button onClick={() => setShowPomodoroActionBox(false)}>Chiudi</button>
-  </div>
-)}
-
-{showTaskEditBox && selectedTask && (
-  <>
-  <div
-      className="overlay-background"
-      onClick={() => setShowTaskEditBox(false)}
-    />
-  <div className="task-modal">
-    <h3>Modifica attività</h3>
-
-    <div className="task-form-card">
-    <label>
-      Titolo:
-      <input
-        type="text"
-        value={selectedTask.title}
-        onChange={(e) =>
-          setSelectedTask({ ...selectedTask, title: e.target.value })
-        }
-      />
-    </label>
-    <label>
-      Data inizio:
-      <input
-        type="date"
-        value={selectedTask.startDate?.slice(0, 10)}
-        onChange={(e) =>
-          setSelectedTask({ ...selectedTask, startDate: e.target.value })
-        }
-      />
-    </label>
-    <label>
-      Data scadenza:
-      <input
-        type="date"
-        value={selectedTask.dueDate?.slice(0, 10)}
-        onChange={(e) =>
-          setSelectedTask({ ...selectedTask, dueDate: e.target.value })
-        }
-      />
-    </label>
-    <button onClick={handleEditTask}>Salva</button>
-    <button onClick={() => setShowTaskEditBox(false)}>Annulla</button>
-  </div>
-  </div>
-  </>
-)}
-
-{selectedEvent && !selectedEvent.isRecurring && showEditBox && (
-  <div className="event-details-wrapper">
-    <button
-      className="event-close-button"
-      onClick={() => {
-        setSelectedEvent(null);
-        setShowEditBox(false);
-      }}
-    >
-      ×
-    </button>
-    <h2 className="form-title">Modifica o elimina evento</h2>
-    <div className="event-form-card">
-      <label>
-        Titolo:
-        <input
-          className="input-field"
-          type="text"
-          value={selectedEvent.title}
-          onChange={(e) =>
-            setSelectedEvent((prev) =>
-              prev ? { ...prev, title: e.target.value } : null
-            )
-          }
+      {(showEventBox || selectedEvent) && (<div className="overlay-background"
+        onClick={() => {
+          setShowEventBox(false);
+          setShowEditBox(false);
+          setSelectedEvent(null);
+        }} 
         />
-      </label>
-
-      <label>
-        Inizio:
-        <input
-          className="input-field"
-          type="datetime-local"
-          value={
-      selectedEvent.start
-        ? new Date(
-            new Date(selectedEvent.start).getTime() -
-              new Date(selectedEvent.start).getTimezoneOffset() * 60000
-          )
-            .toISOString()
-            .slice(0, 16)
-        : ""
-    }
-    onChange={(e) =>
-      setSelectedEvent((prev) =>
-        prev ? { ...prev, start: new Date(e.target.value).toISOString() } : prev
-      )
-    }
-        />
-      </label>
-
-      <label>
-        Fine:
-        <input
-          className="input-field"
-          type="datetime-local"
-          value={
-      selectedEvent.end
-        ? new Date(
-            new Date(selectedEvent.end).getTime() -
-              new Date(selectedEvent.end).getTimezoneOffset() * 60000
-          )
-            .toISOString()
-            .slice(0, 16)
-        : ""
-    }
-    onChange={(e) =>
-      setSelectedEvent((prev) =>
-        prev ? { ...prev, end: new Date(e.target.value).toISOString() } : prev
-      )
-    }
-  />
-      </label>
-
-      <label>
-        Luogo:
-        <input
-          className="input-field"
-          type="text"
-          value={selectedEvent.location || ""}
-          onChange={(e) =>
-            setSelectedEvent((prev) =>
-              prev ? { ...prev, location: e.target.value } : null
-            )
-          }
-        />
-      </label>
-
-      <label className="checkbox-label">
-        <input
-          type="checkbox"
-          checked={selectedEvent.allDay || false}
-          onChange={(e) =>
-            setSelectedEvent((prev) =>
-              prev ? { ...prev, allDay: e.target.checked } : null
-            )
-          }
-        />
-        Evento per tutta la giornata
-      </label>
-
-      <div className="event-actions">
-        <button
-          className="event-btn edit-btn"
-          onClick={() => handleEditEvent("single")}
-        >
-          Modifica
-        </button>
-        <button
-          className="event-btn delete-btn"
-          onClick={() => handleDeleteEvent("single")}
-        >
-          Elimina
-        </button>
-        <button
-          className="event-btn"
-          onClick={() => {
-            setSelectedEvent(null);
-            setShowEditBox(false);
-          }}
-        >
-          Annulla
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Box EVENTO RICORRENTE */}
-{selectedEvent && selectedEvent.isRecurring && (
-  <div className="event-details-wrapper">
-    <button
-      className="event-close-button"
-      onClick={() => {
-        setSelectedEvent(null);
-        setEditMode("single");
-      }}
-    >
-      ×
-    </button>
-    <h2 className="form-title">Modifica evento ricorrente</h2>
-    <div className="event-form-card">
-      {/* Titolo */}
-      <label>
-        Titolo:
-        <input
-          className="input-field"
-          type="text"
-          value={selectedEvent.title}
-          onChange={(e) =>
-            setSelectedEvent((prev) =>
-              prev ? { ...prev, title: e.target.value } : null
-            )
-          }
-        />
-      </label>
-
-      {editMode === "all" ? (
-        <>
-          {/* Solo orari */}
-          <label>
-  Orario inizio:
-  <input
-    className="input-field"
-    type="time"
-    value={
-      selectedEvent.start && !isNaN(new Date(selectedEvent.start).getTime())
-        ? new Date(
-            new Date(selectedEvent.start).getTime() -
-              new Date(selectedEvent.start).getTimezoneOffset() * 60000
-          )
-            .toISOString()
-            .slice(11, 16)
-        : ""
-    }
-    onChange={(e) =>
-      setSelectedEvent((prev) => {
-        if (!prev) return null;
-
-        const baseDate = !isNaN(new Date(prev.start).getTime())
-          ? new Date(prev.start)
-          : new Date();
-
-        baseDate.setHours(
-          parseInt(e.target.value.split(":")[0]),
-          parseInt(e.target.value.split(":")[1]),
-          0,
-          0
-        );
-
-        return { ...prev, start: baseDate.toISOString() };
-      })
-    }
-  />
-</label>
-
-<label>
-  Orario fine:
-  <input
-    className="input-field"
-    type="time"
-    value={
-      selectedEvent.end && !isNaN(new Date(selectedEvent.end).getTime())
-        ? new Date(
-            new Date(selectedEvent.end).getTime() -
-              new Date(selectedEvent.end).getTimezoneOffset() * 60000
-          )
-            .toISOString()
-            .slice(11, 16)
-        : ""
-    }
-    onChange={(e) =>
-      setSelectedEvent((prev) => {
-        if (!prev) return null;
-
-        const baseDate = !isNaN(new Date(prev.end).getTime())
-          ? new Date(prev.end)
-          : new Date();
-
-        baseDate.setHours(
-          parseInt(e.target.value.split(":")[0]),
-          parseInt(e.target.value.split(":")[1]),
-          0,
-          0
-        );
-
-        return { ...prev, end: baseDate.toISOString() };
-      })
-    }
-  />
-</label>
-
-<label>
-      Luogo:
-      <input
-        className="input-field"
-        type="text"
-        value={selectedEvent.location || ""}
-        onChange={(e) =>
-          setSelectedEvent((prev) =>
-            prev ? { ...prev, location: e.target.value } : prev
-          )
-        }
-      />
-    </label>
-
-        </>
-      ) : (
-        <>
-          {/* Data e ora completa */}
-          <label>
-  Inizio:
-  <input
-    className="input-field"
-    type="datetime-local"
-    value={
-      selectedEvent.start && !isNaN(new Date(selectedEvent.start).getTime())
-        ? new Date(
-            new Date(selectedEvent.start).getTime() -
-              new Date(selectedEvent.start).getTimezoneOffset() * 60000
-          )
-            .toISOString()
-            .slice(0, 16)
-        : ""
-    }
-    onChange={(e) =>
-      setSelectedEvent((prev) =>
-        prev ? { ...prev, start: new Date(e.target.value).toISOString() } : prev
-      )
-    }
-  />
-          </label>
-
-          <label>
-  Fine:
-  <input
-    className="input-field"
-    type="datetime-local"
-    value={
-      selectedEvent.end && !isNaN(new Date(selectedEvent.end).getTime())
-        ? new Date(
-            new Date(selectedEvent.end).getTime() -
-              new Date(selectedEvent.end).getTimezoneOffset() * 60000
-          )
-            .toISOString()
-            .slice(0, 16)
-        : ""
-    }
-    onChange={(e) =>
-      setSelectedEvent((prev) =>
-        prev ? { ...prev, end: new Date(e.target.value).toISOString() } : prev
-      )
-    }
-  />
-          </label>
-
-          <label>
-      Luogo:
-      <input
-        className="input-field"
-        type="text"
-        value={selectedEvent.location || ""}
-        onChange={(e) =>
-          setSelectedEvent((prev) =>
-            prev ? { ...prev, location: e.target.value } : prev
-          )
-        }
-      />
-    </label>
-
-        </>
       )}
-
-      {/* All day */}
-      <label className="checkbox-label">
-        <input
-          type="checkbox"
-          checked={selectedEvent.allDay || false}
-          onChange={(e) =>
-            setSelectedEvent((prev) =>
-              prev ? { ...prev, allDay: e.target.checked } : null
-            )
-          }
-        />
-        Evento per tutta la giornata
-      </label>
-
-      {/* Checkbox modifica tutta la serie */}
-      <label className="checkbox-label" style={{ marginTop: "8px" }}>
-        <input
-          type="checkbox"
-          checked={editMode === "all"}
-          onChange={(e) => setEditMode(e.target.checked ? "all" : "single")}
-        />
-        Modifica/elimina tutta la serie
-      </label>
-
-      {/* Bottoni */}
-      <div className="event-actions">
-        {editMode === "all" ? (
-          <button
-            className="event-btn edit-btn"
-            onClick={() => handleEditEvent("all")}
-          >
-            Modifica tutta la serie
-          </button>
-        ) : (
-          <button
-            className="event-btn edit-btn"
-            onClick={() => handleEditEvent("single")}
-          >
-            Modifica solo questa occorrenza
-          </button>
-        )}
-        {editMode === "all" ? (
-          <button
-            className="event-btn delete-btn"
-            onClick={() => handleDeleteEvent("all")}
-          >
-            Elimina tutta la serie
-          </button>
-        ) : (
-          <button
-            className="event-btn delete-btn"
-            onClick={() => handleDeleteEvent("single")}
-          >
-            Elimina solo questa occorrenza
-          </button>
-        )}
-        <button
-          className="event-btn"
-          onClick={() => {
-            setSelectedEvent(null);
-            setEditMode("single");
-          }}
-        >
-          Annulla
-        </button>
-      </div>
     </div>
-  </div>
-)}
 
-<div style={{ marginTop: "1rem", textAlign: "center" }}>
-  <button
-    onClick={() => setShowEventBox(true)}
-    style={{
-      marginRight: "10px",
-      padding: "6px 12px",
-      background: "#007bff",
-      color: "white",
-      border: "none",
-      borderRadius: "4px",
-      cursor: "pointer",
-    }}
-  >
-    ➕ Nuovo Evento
-  </button>
+    {/*Box crea EVENTO*/}
+    {showEventBox && (
+      <div className="eventi-container">
+        <h2 className="eventi-title">Nuovo Evento - {selectedDate}</h2>
+        <div className="event-card">
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Titolo"
+            value={newEvent.title}
+            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+          />
+        <input
+            type="datetime-local"
+            className="input-field"
+            value={
+              newEvent.start
+                ? new Date(new Date(newEvent.start).getTime() - new Date(newEvent.start).getTimezoneOffset() * 60000)
+                    .toISOString()
+                    .slice(0, 16)
+                : ""
+            }
+            onChange={(e) => {
+              const date = new Date(e.target.value);
+              setNewEvent((prev) => ({ ...prev, start: date.toISOString() })); // ✅ niente offset qui
+            }}
+          />
 
-  <button
-    onClick={() => setShowTaskBox(true)} 
-    style={{
-      padding: "6px 12px",
-      background: "#28a745",
-      color: "white",
-      border: "none",
-      borderRadius: "4px",
-      cursor: "pointer",
-    }}
-  >
-    📝 Nuova Attività
-  </button>
+          <input
+            type="datetime-local"
+            className="input-field"
+            value={
+              newEvent.end
+                ? new Date(new Date(newEvent.end).getTime() - new Date(newEvent.end).getTimezoneOffset() * 60000)
+                    .toISOString()
+                    .slice(0, 16)
+                : ""
+            }
+            onChange={(e) => {
+              const date = new Date(e.target.value);
+              setNewEvent((prev) => ({ ...prev, end: date.toISOString() })); 
+            }}
+          />
+          <input
+            type="text"
+            className="input-field"
+            placeholder="Luogo"
+            value={newEvent.location}
+            onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+          />
 
-  <button
-    onClick={() => setShowPomodoroBox(true)}
-    style={{
-      padding: "6px 12px",
-      background: "#f1c40f",
-      color: "white",
-      border: "none",
-      borderRadius: "4px",
-      cursor: "pointer",
-      marginLeft: "10px",
-    }}
-  >
-    🍅 Nuovo Pomodoro
-  </button>
-</div>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={newEvent.allDay}
+              onChange={(e) => setNewEvent({ ...newEvent, allDay: e.target.checked })}
+            />
+            Evento per tutta la giornata
+          </label>
+
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={newEvent.isRecurring}
+              onChange={(e) => setNewEvent({ ...newEvent, isRecurring: e.target.checked })}
+            />
+            Evento ripetibile
+          </label>
+
+
+
+          {newEvent.isRecurring && (
+            <div className="recurrence-section">
+              <label className="label-select">Frequenza:</label>
+              <select
+                className="select-field"
+                value={newEvent.recurrence.frequency}
+                onChange={(e) => setNewEvent({...newEvent, recurrence: {...newEvent.recurrence, frequency: e.target.value,}, }) }
+              >
+                <option value="">Seleziona frequenza</option>
+                <option value="daily">Ogni giorno</option>
+                <option value="weekly">Ogni settimana</option>
+                <option value="monthly">Ogni mese</option>
+              </select>
+
+            <label className="label-date">Fino al</label>
+            <input
+              type="date"
+              className="input-field"
+              value={newEvent.recurrence.repeatUntil}
+              onChange={(e) => setNewEvent({...newEvent, recurrence: {...newEvent.recurrence, repeatUntil: e.target.value}, }) }
+            />
+            </div>
+          )}
+
+          <div className="event-actions">
+            <button className="event-btn edit-btn" onClick={handleAddEvent}>
+              Aggiungi Evento
+            </button>
+            <button
+              className="event-btn delete-btn"
+              onClick={() => setShowEventBox(false)}
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/*Box crea TASK */}
+    {showTaskBox && (
+      <div className="event-box task-box">
+        <h3>Nuova Attività</h3>
+
+        {/* Titolo */}
+        <label>
+          Titolo:
+          <input
+            type="text"
+            value={newTask.title}
+            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+            className="input-field"
+          />
+        </label>
+
+        {/* Data di inizio */}
+        <label>
+          Data inizio:
+          <input
+            type="date"
+            value={newTask.startDate}
+            onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
+            className="input-field"
+          />
+        </label>
+
+        {/* Data di scadenza */}
+        <label>
+          Scadenza:
+          <input
+            type="date"
+            value={newTask.dueDate}
+            onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+            className="input-field"
+          />
+        </label>
+
+        <button onClick={handleAddTask}>Aggiungi Attività</button>
+        <button onClick={() => setShowTaskBox(false)}>Chiudi</button>
+      </div>
+    )}
+
+    {showPomodoroBox && (
+      <>
+      <div className="overlay-background" onClick={() => setShowPomodoroBox(false)} />
+      <div className="event-box pomodoro-box">
+        <h3>Nuovo Pomodoro</h3>
+
+        <label>
+          Data inizio:
+          <input
+            type="datetime-local"
+            value={newPomodoro.date}
+            onChange={(e) =>
+              setNewPomodoro({ ...newPomodoro, date: e.target.value })
+            }
+          />
+        </label>
+
+        <label>
+          Minuti studio:
+          <input
+            type="number"
+            min={1}
+            value={newPomodoro.studyMinutes}
+            onChange={(e) =>
+              setNewPomodoro({
+                ...newPomodoro,
+                studyMinutes: Number(e.target.value),
+              })
+            }
+          />
+        </label>
+
+        <label>
+          Minuti pausa:
+          <input
+            type="number"
+            min={1}
+            value={newPomodoro.breakMinutes}
+            onChange={(e) =>
+              setNewPomodoro({
+                ...newPomodoro,
+                breakMinutes: Number(e.target.value),
+              })
+            }
+          />
+        </label>
+
+        <label>
+          Cicli:
+          <input
+            type="number"
+            min={1}
+            value={newPomodoro.cyclesPlanned}
+            onChange={(e) =>
+              setNewPomodoro({
+                ...newPomodoro,
+                cyclesPlanned: Number(e.target.value),
+              })
+            }
+          />
+        </label>
+
+        <button onClick={handleAddPomodoro}>Aggiungi Pomodoro</button>
+        <button onClick={() => setShowPomodoroBox(false)}>Annulla</button>
+      </div>
+      </>
+    )}
+
+    {showPomodoroActionBox && selectedPomodoro && (
+      <div className="overlay-background" onClick={() => setShowPomodoroActionBox(false)} />
+    )}
+
+    {showPomodoroActionBox && selectedPomodoro && (
+      <div className="event-box pomodoro-box">
+        <h3>Pomodoro</h3>
+        <p><strong>Data:</strong> {new Date(selectedPomodoro.date).toLocaleString()}</p>
+        <p><strong>Cicli:</strong> {selectedPomodoro.cyclesPlanned} (completati {selectedPomodoro.cyclesCompleted})</p>
+        <p><strong>Studio:</strong> {selectedPomodoro.studyMinutes} min, <strong>Pausa:</strong> {selectedPomodoro.breakMinutes} min</p>
+
+        <button onClick={() => navigate("/pomodoro")}>Apri Pomodoro</button>
+        <button className="pomodoro-complete-btn" onClick={handleCompletePomodoro}>
+      Pomodoro Completato(elimina dal calendario)
+      </button>
+        <button onClick={() => setShowPomodoroActionBox(false)}>Chiudi</button>
+      </div>
+    )}
+
+    {/*Box modifica TASK*/}
+    {showTaskEditBox && selectedTask && (
+      <>
+      <div
+        className="overlay-background"
+        onClick={() => setShowTaskEditBox(false)}
+      />
+      <div className="task-modal">
+        <h3>Modifica attività</h3>
+
+        <div className="task-form-card">
+          <label>
+            Titolo:
+            <input
+              type="text"
+              value={selectedTask.title}
+              onChange={(e) =>
+                setSelectedTask({ ...selectedTask, title: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Data inizio:
+            <input
+              type="date"
+              value={selectedTask.startDate?.slice(0, 10)}
+              onChange={(e) =>
+                setSelectedTask({ ...selectedTask, startDate: e.target.value })
+              }
+            />
+          </label>
+          <label>
+            Data scadenza:
+            <input
+              type="date"
+              value={selectedTask.dueDate?.slice(0, 10)}
+              onChange={(e) =>
+                setSelectedTask({ ...selectedTask, dueDate: e.target.value })
+              }
+            />
+          </label>
+          <button onClick={handleEditTask}>Salva</button>
+          <button onClick={() => setShowTaskEditBox(false)}>Annulla</button>
+        </div>
+      </div>
+      </>
+    )}
+
+    {selectedEvent && showEditBox && (
+      <Evento event={selectedEvent} fetch = {fetchEvents} onClose={handleCloseForm}/>
+    )}
+
+    <div style={{ marginTop: "1rem", textAlign: "center" }}>
+      <button
+        onClick={() => setShowEventBox(true)}
+        style={{
+          marginRight: "10px",
+          padding: "6px 12px",
+          background: "#007bff",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        ➕ Nuovo Evento
+      </button>
+
+      <button
+        onClick={() => setShowTaskBox(true)} 
+        style={{
+          padding: "6px 12px",
+          background: "#28a745",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        📝 Nuova Attività
+      </button>
+
+      <button
+        onClick={() => setShowPomodoroBox(true)}
+        style={{
+          padding: "6px 12px",
+          background: "#f1c40f",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+          marginLeft: "10px",
+        }}
+      >
+        🍅 Nuovo Pomodoro
+      </button>
+    </div>
  
-<div className="task-list" style={{ marginTop: "20px" }}>
-  <h3>Le tue Attività</h3>
+    <div className="task-list" style={{ marginTop: "20px" }}>
+      <h3>Le tue Attività</h3>
 
-  
-  <ul>
-    {tasks.map((task) => {
-      const isOverdue =
-        !task.completed && new Date(task.dueDate) < currentDate;
-      return (
-       <li key={task._id} className="task-item">
-  <span style={{ marginRight: "8px", fontSize: "0.9rem", color: "rgba(255,255,255,0.7)" }}>
-    Completata →
-  </span>
-  <input
-    type="checkbox"
-    checked={task.completed}
-    onChange={() => toggleTaskCompletion(task._id)}
-  />
-  <span
-    style={{
-      textDecoration: task.completed ? "line-through" : "none",
-      marginLeft: "6px"
-    }}
-  >
-    {task.title} (scade il{" "}
-    {new Date(task.dueDate).toLocaleDateString()})
-  </span>
-  {isOverdue && (
-    <strong style={{ color: "red", marginLeft: "8px" }}>
-      IN RITARDO
-    </strong>
-  )}
-  <button onClick={() => deleteTask(task._id)}>❌</button>
-</li>
-      );
-    })}
-  </ul>
-</div>
+      
+      <ul>
+        {tasks.map((task) => {
+          const isOverdue =
+            !task.completed && new Date(task.dueDate) < currentDate;
+          return (
+          <li key={task._id} className="task-item">
+      <span style={{ marginRight: "8px", fontSize: "0.9rem", color: "rgba(255,255,255,0.7)" }}>
+        Completata →
+      </span>
+      <input
+        type="checkbox"
+        checked={task.completed}
+        onChange={() => toggleTaskCompletion(task._id)}
+      />
+      <span
+        style={{
+          textDecoration: task.completed ? "line-through" : "none",
+          marginLeft: "6px"
+        }}
+      >
+        {task.title} (scade il{" "}
+        {new Date(task.dueDate).toLocaleDateString()})
+      </span>
+      {isOverdue && (
+        <strong style={{ color: "red", marginLeft: "8px" }}>
+          IN RITARDO
+        </strong>
+      )}
+      <button onClick={() => deleteTask(task._id)}>❌</button>
+    </li>
+          );
+        })}
+      </ul>
+    </div>
 
-</div>
-  )};
+    </div>
+)};
 
   
 

@@ -2,11 +2,13 @@ import User from "../models/user";
 import Evento from "../models/evento";
 import Task from "../models/task";
 import Note from "../models/note";
+import Pomodoro from "../models/pomodoro";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import express, { RequestHandler } from "express";
 import mongoose from "mongoose";
+import dayjs from "dayjs";
 
 import { Router, Request, Response, NextFunction } from "express";
 
@@ -212,7 +214,7 @@ router.post("/eventi", authenticateToken, async (req: Request, res: Response): P
     }
 
     if (!isRecurring) {
-      // Evento singolo - invariato
+      // Evento singolo
       const nuovoEvento = new Evento({
         title,
         start,
@@ -230,7 +232,7 @@ router.post("/eventi", authenticateToken, async (req: Request, res: Response): P
        return;
     }
 
-    // Evento ricorrente - generazione immediata
+    // Evento ricorrente
     if (!recurrence?.frequency || !recurrence?.repeatUntil) {
        res.status(400).json({ error: "Dati di ricorrenza mancanti" });
        return;
@@ -335,7 +337,7 @@ router.get("/eventi", authenticateToken, async (req: Request, res: Response) => 
     // Prende tutti gli eventi dell'utente
     const eventiOriginali = await Evento.find({ userId });
 
-    // Finestra massima di generazione per vecchi eventi master
+  
     const fineFinestra = new Date();
     fineFinestra.setMonth(fineFinestra.getMonth() + 3);
 
@@ -344,10 +346,9 @@ router.get("/eventi", authenticateToken, async (req: Request, res: Response) => 
     for (const evento of eventiOriginali) {
       if (evento.isRecurring && evento.recurrence?.frequency) {
         if (evento.recurrenceId && eventiOriginali.some(ev => ev.recurrenceId?.toString() === evento.recurrenceId?.toString() && ev._id.toString() !== evento._id.toString())) {
-          // Se esistono già occorrenze per questo recurrenceId, non generiamo nulla (nuova modalità)
+          // Se esistono già occorrenze per questo recurrenceId non generiamo nulla 
           continue;
         } else {
-          // Vecchio evento master → generiamo occorrenze in memoria
           eventiEspansi.push(...generaOccorrenze(evento, fineFinestra));
         }
       } else {
@@ -356,7 +357,7 @@ router.get("/eventi", authenticateToken, async (req: Request, res: Response) => 
       }
     }
 
-    // Aggiunge tutte le occorrenze ricorrenti già salvate in DB (nuova modalità)
+    // Aggiunge tutte le occorrenze ricorrenti già salvate in DB
     const occorrenzeSalvate = eventiOriginali.filter(ev => ev.isRecurring && ev.recurrenceId && !ev.overridesOriginalId);
     eventiEspansi.push(...occorrenzeSalvate.map(ev => ev.toObject()));
 
@@ -569,7 +570,7 @@ router.delete("/eventi/ricorrenti/:recurrenceId", authenticateToken, async (req:
 //ROUTE per le TASK
 // GET task
 router.get("/tasks", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-   console.log("✅ req.user in /tasks:", (req as any).user);
+   console.log(" req.user in /tasks:", (req as any).user);
   const userId = getUserIdOr401(req, res);
   if (!userId) return;
 
@@ -582,7 +583,7 @@ router.get("/tasks", authenticateToken, async (req: AuthenticatedRequest, res: R
 });
 // route per aggiungere una nuova task
 router.post("/tasks", authenticateToken, (async (req: AuthenticatedRequest, res: Response) => {
-  console.log("👉 req.user:", req.user);
+  console.log(" req.user:", req.user);
   const userId = getUserIdOr401(req, res);
   if (!userId) return;
 
@@ -737,7 +738,7 @@ router.post("/notes/:id/duplicate", authenticateToken, async (req: Authenticated
        return;
     }
 
-    // qui TS ora sa che original non è null
+    
     const title = original.title ?? "Senza titolo";
     const content = original.content ?? "";
     const categories = original.categories ?? [];
@@ -756,6 +757,156 @@ router.post("/notes/:id/duplicate", authenticateToken, async (req: Authenticated
     res.status(500).json({ error: "Errore duplicazione nota" });
   }
 });
+
+//Parte Pomodoro
+router.get("/pomodoro", authenticateToken, async (req, res) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    
+    const clientDate = req.query.currentDate as string | undefined;
+    const today = clientDate ? dayjs(clientDate).startOf("day") : dayjs().startOf("day");
+
+    const pomodoros = await Pomodoro.find({ userId });
+
+    for (const p of pomodoros) {
+      const date = dayjs(p.date);
+      if (date.isBefore(today) && (p.cyclesPlanned - p.cyclesCompleted) > 0) {
+        const notDone = p.cyclesPlanned - p.cyclesCompleted;
+        const nextDay = today.toDate();
+
+        let nextPomodoro = await Pomodoro.findOne({ userId, date: nextDay }).exec();
+        if (nextPomodoro) {
+          nextPomodoro.cyclesPlanned += notDone;
+          await nextPomodoro.save();
+        } else {
+          nextPomodoro = new Pomodoro({
+            userId,
+            date: nextDay,
+            cyclesPlanned: notDone,
+            studyMinutes: p.studyMinutes,
+            breakMinutes: p.breakMinutes,
+          });
+          await nextPomodoro.save();
+        }
+
+        await p.deleteOne();
+      }
+    }
+
+    const updated = await Pomodoro.find({ userId }).sort({ date: 1 });
+    res.json(updated);
+  } catch (err) {
+    console.error("Errore caricamento pomodoro:", err);
+    res.status(500).json({ error: "Errore server" });
+  }
+});
+
+router.post("/pomodoro", authenticateToken, async (req, res) => {
+ const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  const { date, cyclesPlanned, studyMinutes, breakMinutes } = req.body;
+
+
+  if (!date) {
+    res.status(400).json({ error: "Inserire una data obbligatoriamente" });
+    return;
+  }
+  if (!cyclesPlanned || !studyMinutes || !breakMinutes) {
+    res.status(400).json({ error: "Tutti i campi sono obbligatori" });
+    return;
+  }
+
+  try {
+    const newPomodoro = new Pomodoro({
+      userId,
+      date,
+      cyclesPlanned,
+      studyMinutes,
+      breakMinutes,
+    });
+    await newPomodoro.save();
+    res.status(201).json(newPomodoro);
+  } catch (err) {
+    console.error("Errore creazione pomodoro:", err);
+    res.status(500).json({ error: "Errore server" });
+  }
+});
+
+router.put("/pomodoro/:id/complete", authenticateToken, async (req, res) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  const updated = await Pomodoro.findOneAndUpdate(
+    { _id: req.params.id, userId },
+    { $inc: { cyclesCompleted: 1 } },
+    { new: true }
+  );
+  res.json(updated);
+});
+
+router.put("/pomodoro/completeDayAll", authenticateToken, async (req, res) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    
+    const today = req.body.currentDate
+      ? dayjs(req.body.currentDate).startOf("day")
+      : dayjs().startOf("day");
+
+    const pomodoros = await Pomodoro.find({ userId });
+    let moved = 0;
+
+    for (const p of pomodoros) {
+      const pDate = dayjs(p.date);
+      const notDone = (p.cyclesPlanned ?? 0) - (p.cyclesCompleted ?? 0);
+
+      if (pDate.isBefore(today) && notDone > 0) {
+        
+        const newP = new Pomodoro({
+          userId,
+          date: today.toDate(),
+          cyclesPlanned: notDone,
+          studyMinutes: p.studyMinutes,
+          breakMinutes: p.breakMinutes,
+        });
+        await newP.save();
+        await p.deleteOne();
+        moved++;
+      } else if (pDate.isBefore(today) && notDone <= 0) {
+        await p.deleteOne();
+        moved++;
+      }
+    }
+
+    res.json({ success: true, moved });
+  } catch (err) {
+    console.error("Errore spostamento pomodoro:", err);
+    res.status(500).json({ error: "Errore server" });
+  }
+});
+
+//route per eliminare gli eventi pomodoro
+router.delete("/pomodoro/:id", authenticateToken, async (req, res) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const deleted = await Pomodoro.findOneAndDelete({ _id: req.params.id, userId });
+    if (!deleted) {
+      res.status(404).json({ error: "Pomodoro non trovato" });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Errore eliminazione pomodoro:", err);
+    res.status(500).json({ error: "Errore server" });
+  }
+});
+
 
 
 export default router;

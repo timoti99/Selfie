@@ -1,4 +1,5 @@
 import React, {useState, useEffect, useCallback, useContext, useRef} from "react";
+import { useNavigate } from "react-router-dom";
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -10,6 +11,7 @@ import { EventClickArg } from '@fullcalendar/core';
 import Modal from 'react-modal';
 import Navbar from "./Navbar";
 import axios from "axios";
+import dayjs from "dayjs";
 import '../App.css';
 import '../calendarPage.css';
 import { TimeMachineContext } from '../timeContext';
@@ -65,6 +67,26 @@ interface SelectedEvent {
   extendedProps?: Record<string, unknown>;
 }
 
+interface PomodoroFromServer {
+  _id: string;
+  date: string;               
+  cyclesPlanned: number;
+  cyclesCompleted?: number;
+  studyMinutes: number;
+  breakMinutes: number;
+  title?: string;
+}
+
+interface PomodoroEvent {
+  _id: string;
+  date: string;
+  cyclesPlanned: number;
+  cyclesCompleted: number;
+  studyMinutes: number;
+  breakMinutes: number;
+}
+
+
 type Task = {
   _id: string;
   title: string;
@@ -110,9 +132,23 @@ const CalendarPage: React.FC = () => {
   const [editMode, setEditMode] = useState<'single' | 'all'>('single');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [serverEventsMapped, setServerEventsMapped] = useState<EventInput[]>([]);
+
+  const [pomodoroEvents, setPomodoroEvents] = useState<EventInput[]>([]);
+
   const [showTaskBox, setShowTaskBox] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskEditBox, setShowTaskEditBox] = useState(false);
+  const [showPomodoroBox, setShowPomodoroBox] = useState(false);
+  const [newPomodoro, setNewPomodoro] = useState({
+  date: "",
+  cyclesPlanned: 5,
+  studyMinutes: 30,
+  breakMinutes: 5,
+});
+  const [selectedPomodoro, setSelectedPomodoro] = useState<PomodoroEvent | null>(null);
+  const [showPomodoroActionBox, setShowPomodoroActionBox] = useState(false);
+
+
   const { currentDate } = useContext(TimeMachineContext);
   const calendarRef = useRef<FullCalendar | null>(null);
   const [newTask, setNewTask] = useState<NewTask>({
@@ -136,72 +172,112 @@ const CalendarPage: React.FC = () => {
       repeatUntil: ''
     }
   });
+  
 
   const token = localStorage.getItem("token");
 
   
   const fetchEvents = useCallback(async () => {
-    if (!token) return;
-    try {
-      const res = await axios.get(`${API}/eventi`, {
+  if (!token) return;
+  try {
+    const res = await axios.get(`${API}/eventi`, {
       headers: { Authorization: `Bearer ${token}` },
-      });
+    });
 
-      const serverEvents: EventFromServer[] = res.data;
+    const serverEvents: EventFromServer[] = res.data;
 
-      const mappedServer: EventInput[] = serverEvents.map((ev) => ({
-        id: String(ev._id),
-        title: ev.title,
-        start: ev.start,
-        end: ev.end,
-        allDay: !!ev.allDay,
-        extendedProps: {
-          location: ev.location,
-          durationMinutes: ev.durationMinutes,
-          isRecurring: ev.isRecurring,
-          overridesOriginalId: ev.overridesOriginalId,
-          recurrenceId: ev.recurrenceId,
-          seriesParentId: ev.seriesParentId ?? ev.overridesOriginalId ?? null,
-        },
-        className: ev.isRecurring ? "recurring-event" : "single-event"
-      }));
+    const mappedServer: EventInput[] = serverEvents.map((ev) => ({
+      id: String(ev._id),
+      title: ev.title,
+      start: ev.start,
+      end: ev.end,
+      allDay: !!ev.allDay,
+      extendedProps: {
+        location: ev.location,
+        durationMinutes: ev.durationMinutes,
+        isRecurring: ev.isRecurring,
+        overridesOriginalId: ev.overridesOriginalId,
+        recurrenceId: ev.recurrenceId,
+        seriesParentId: ev.seriesParentId ?? ev.overridesOriginalId ?? null,
+      },
+      className: ev.isRecurring ? "recurring-event" : "single-event"
+    }));
 
-      setServerEventsMapped(mappedServer);
+    // solo imposto la sorgente "server"
+    setServerEventsMapped(mappedServer);
+  } catch (err) {
+    console.error("Errore nel fetch degli eventi:", err);
+  }
+}, [token]);
 
-      setEvents([...mappedServer, ...mapTasksToEvents(tasks),]);
+const fetchTasks = useCallback(async () => {
+  if (!token) return;
+  try {
+    const res = await axios.get<Task[]>(`${API}/tasks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setTasks(res.data);
+  } catch (err) {
+    console.error("Errore fetch tasks", err);
+  }
+}, [token]);
 
-    } catch (err) {
-      console.error("Errore nel fetch degli eventi:", err);
+  const fetchPomodoro = useCallback(async () => {
+  if (!token) return;
+try {
+  console.log("[fetchPomodoro] start - currentDate:", currentDate);
+
+  
+  const putUrl = `${API}/pomodoro/completeDayAll`;
+  console.log("[fetchPomodoro] calling PUT", putUrl);
+
+  const putRes = await axios.put(
+    putUrl,
+    { currentDate }, 
+    {
+      headers: { Authorization: `Bearer ${token}` },
     }
-  }, [token, tasks]);
+  );
+  console.log("[fetchPomodoro] PUT response:", putRes.data);
 
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  
+  const res = await axios.get<PomodoroFromServer[]>(`${API}/pomodoro`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  console.log("[fetchPomodoro] GET pomodoro count:", res.data.length);
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const res = await axios.get(`${API}/tasks`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setTasks(res.data);
-      } catch (err) {
-        console.error("Errore caricamento task", err);
-      }
-    };
+  const mappedPomodoro: EventInput[] = res.data.map((p) => ({
+    id: String(p._id),
+    title: p.title || "🍅 Pomodoro",
+    // normalizziamo a inizio giornata 
+    start: dayjs(p.date).startOf("day").toISOString(),
+    end: dayjs(p.date).startOf("day").toISOString(),
+    allDay: true,
+    extendedProps: {
+      type: "pomodoro",
+      pomodoroData: p,
+    },
+    className: "pomodoro-event",
+  }));
 
-    if (token) fetchTasks();
-  }, [token]);
+  setPomodoroEvents(mappedPomodoro);
+} catch (err) {
+  console.error("Errore caricamento Pomodoro", err);
+}
+}, [token, currentDate]);
 
+useEffect(() => {
+  fetchPomodoro();
+}, [fetchPomodoro, currentDate]);
 
-  // Rinfondo eventi e task quando cambiano le task
-  useEffect(() => {
-    setEvents([
-      ...serverEventsMapped,
-      ...mapTasksToEvents(tasks),
-    ]);
-  }, [tasks, serverEventsMapped]);
+ useEffect(() => {
+  // unisco in ordine: eventi server, tasks eventi, poi pomodoro
+  setEvents([
+    ...serverEventsMapped,
+    ...mapTasksToEvents(tasks),
+    ...pomodoroEvents,
+  ]);
+}, [serverEventsMapped, tasks, pomodoroEvents]);
 
   //effect per modificare la data corrente
   useEffect(() => {
@@ -210,6 +286,11 @@ const CalendarPage: React.FC = () => {
     calendarApi.setOption("now", () => currentDate);
   }
 }, [currentDate]);
+
+useEffect(() => {
+  fetchEvents();
+  fetchTasks();
+}, [fetchEvents, fetchTasks]);
 
   const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
@@ -298,6 +379,51 @@ const CalendarPage: React.FC = () => {
     }
   };
 
+  const handleAddPomodoro = async () => {
+  if (!token) return;
+  try {
+    await axios.post(
+      `${API}/pomodoro`,
+      {
+        date: newPomodoro.date,
+        cyclesPlanned: newPomodoro.cyclesPlanned,
+        studyMinutes: newPomodoro.studyMinutes,
+        breakMinutes: newPomodoro.breakMinutes,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+   
+    await fetchPomodoro();
+
+    setShowPomodoroBox(false);
+    setNewPomodoro({
+      date: "",
+      cyclesPlanned: 5,
+      studyMinutes: 30,
+      breakMinutes: 5,
+    });
+  } catch (err) {
+    console.error("Errore creazione pomodoro", err);
+  }
+};
+
+const handleCompletePomodoro = async () => {
+  if (!selectedPomodoro) return;
+  try {
+    await axios.delete(`${API}/pomodoro/${selectedPomodoro._id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    fetchPomodoro();
+    setShowPomodoroActionBox(false);
+    setSelectedPomodoro(null);
+  } catch (err) {
+    console.error("Errore completamento Pomodoro", err);
+  }
+};
+
+  const navigate = useNavigate();
+
   const handleEventClick = (info: EventClickArg) => {
     const e = info.event;
 
@@ -315,6 +441,14 @@ const CalendarPage: React.FC = () => {
       setShowTaskEditBox(true);
       return;
     }
+
+    //pomodoro
+    if (e.extendedProps?.type === "pomodoro" && e.extendedProps?.pomodoroData) {
+    const pomodoro = e.extendedProps.pomodoroData;
+    setSelectedPomodoro(pomodoro);
+    setShowPomodoroActionBox(true);
+    return;
+  }
 
     //parte eventi
     setSelectedEvent({
@@ -356,7 +490,7 @@ const CalendarPage: React.FC = () => {
       if (mode === "single" && selectedEvent.extendedProps?.recurrenceId) {
         // modifica solo una occorrenza (override)
         const payload = {
-          id: selectedEvent.id, // se è un override, esiste un ID specifico
+          id: selectedEvent.id, // se è un override esiste un ID specifico
           title: selectedEvent.title,
           start: startDate.toISOString(),
           end: endDate.toISOString(),
@@ -401,7 +535,7 @@ const CalendarPage: React.FC = () => {
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        // aggiorna subito la lista (senza reload)
+        
       }
 
       await fetchEvents();
@@ -442,7 +576,7 @@ const CalendarPage: React.FC = () => {
           });
       }
 
-      // aggiorna subito la lista (senza reload)
+      // aggiorna subito la lista
       await fetchEvents();
 
       alert("Evento eliminato con successo!");
@@ -498,17 +632,17 @@ const CalendarPage: React.FC = () => {
   // Funzione per segnare completata
   const toggleTaskCompletion = async (id: string) => {
     try {
-      const task = tasks.find((t) => t._id === id); // <-- uso _id, non id
+      const task = tasks.find((t) => t._id === id); 
       if (!task) return;
 
       const res = await axios.put(
         `${API}/tasks/${id}`,
-        { completed: !task.completed }, // mando solo la proprietà che cambia
+        { completed: !task.completed }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setTasks((prev) =>
-        prev.map((t) => (t._id === id ? res.data : t)) // aggiorno con quello che torna dal backend
+        prev.map((t) => (t._id === id ? res.data : t)) 
       );
     } catch (err) {
       console.error("Errore aggiornamento task", err);
@@ -653,7 +787,7 @@ const CalendarPage: React.FC = () => {
   }
   onChange={(e) => {
     const date = new Date(e.target.value);
-    setNewEvent((prev) => ({ ...prev, start: date.toISOString() })); // ✅ niente offset qui
+    setNewEvent((prev) => ({ ...prev, start: date.toISOString() })); 
   }}
 />
 
@@ -798,6 +932,93 @@ const CalendarPage: React.FC = () => {
 
     <button onClick={handleAddTask}>Aggiungi Attività</button>
     <button onClick={() => setShowTaskBox(false)}>Chiudi</button>
+  </div>
+)}
+
+{showPomodoroBox && (
+  <>
+  <div className="overlay-background" onClick={() => setShowPomodoroBox(false)} />
+  <div className="event-box pomodoro-box">
+    <h3>Nuovo Pomodoro</h3>
+
+    <label>
+      Data inizio:
+      <input
+        type="datetime-local"
+        value={newPomodoro.date}
+        onChange={(e) =>
+          setNewPomodoro({ ...newPomodoro, date: e.target.value })
+        }
+      />
+    </label>
+
+    <label>
+      Minuti studio:
+      <input
+        type="number"
+        min={1}
+        value={newPomodoro.studyMinutes}
+        onChange={(e) =>
+          setNewPomodoro({
+            ...newPomodoro,
+            studyMinutes: Number(e.target.value),
+          })
+        }
+      />
+    </label>
+
+    <label>
+      Minuti pausa:
+      <input
+        type="number"
+        min={1}
+        value={newPomodoro.breakMinutes}
+        onChange={(e) =>
+          setNewPomodoro({
+            ...newPomodoro,
+            breakMinutes: Number(e.target.value),
+          })
+        }
+      />
+    </label>
+
+    <label>
+      Cicli:
+      <input
+        type="number"
+        min={1}
+        value={newPomodoro.cyclesPlanned}
+        onChange={(e) =>
+          setNewPomodoro({
+            ...newPomodoro,
+            cyclesPlanned: Number(e.target.value),
+          })
+        }
+      />
+    </label>
+
+    <button onClick={handleAddPomodoro}>Aggiungi Pomodoro</button>
+    <button onClick={() => setShowPomodoroBox(false)}>Annulla</button>
+  </div>
+  </>
+)}
+
+{showPomodoroActionBox && selectedPomodoro && (
+  <div className="overlay-background" onClick={() => setShowPomodoroActionBox(false)} />
+)}
+
+{showPomodoroActionBox && selectedPomodoro && (
+  <div className="event-box pomodoro-box">
+    <h3>Pomodoro</h3>
+    <p><strong>Data:</strong> {new Date(selectedPomodoro.date).toLocaleString()}</p>
+    <p><strong>Cicli:</strong> {selectedPomodoro.cyclesPlanned} (completati {selectedPomodoro.cyclesCompleted})</p>
+    <p><strong>Studio:</strong> {selectedPomodoro.studyMinutes} min, <strong>Pausa:</strong> {selectedPomodoro.breakMinutes} min</p>
+
+    <button onClick={() => navigate("/pomodoro")}>Apri Pomodoro</button>
+    <button className="pomodoro-complete-btn" onClick={handleCompletePomodoro}>
+  Pomodoro Completato(elimina dal calendario)
+   </button>
+    <button onClick={() => setShowPomodoroActionBox(false)}>Chiudi</button>
   </div>
 )}
 
@@ -1258,6 +1479,21 @@ const CalendarPage: React.FC = () => {
     }}
   >
     📝 Nuova Attività
+  </button>
+
+  <button
+    onClick={() => setShowPomodoroBox(true)}
+    style={{
+      padding: "6px 12px",
+      background: "#f1c40f",
+      color: "white",
+      border: "none",
+      borderRadius: "4px",
+      cursor: "pointer",
+      marginLeft: "10px",
+    }}
+  >
+    🍅 Nuovo Pomodoro
   </button>
 </div>
  

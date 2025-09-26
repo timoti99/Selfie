@@ -300,12 +300,12 @@
 }
 
 .task-box button:first-of-type {
-  background-color: #28a745; /* bottone Salva in verde */
+  background-color: #28a745;
   color: white;
 }
 
 .task-box button:last-of-type {
-  background-color: #6c757d; /* bottone Annulla grigio */
+  background-color: #6c757d; 
   color: white;
 }
 
@@ -500,7 +500,7 @@
   margin-top: 12px;
   margin-bottom: 6px;
   font-size: 1rem;
-  color: red /* verde per il titolo legenda */
+  color: red 
 }
 
 .calendar-instructions ul {
@@ -512,4 +512,118 @@
 .instructions-left,
 .instructions-right {
   flex: 1;
+}
+
+
+
+.fc-event.pomodoro-event {
+  background-color: yellow !important; 
+  border: none !important;
+  color: #fff !important;
+  font-weight: bold;
+}
+
+/* Box Pomodoro */
+.pomodoro-box {
+  position: fixed;             
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%); 
+  z-index: 1001;                
+  background: #2c2c2c; 
+  border: 2px solid #f1c40f; 
+  border-radius: 8px;
+  padding: 20px;
+  color: #fff; 
+  max-width: 400px;
+  width: 90%;                   
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+}
+
+/* Titolo */
+.pomodoro-box h3 {
+  color: #f1c40f; 
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+/* Label + Input */
+.pomodoro-box label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #ddd;
+}
+
+.pomodoro-box input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  background: #1e1e1e;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: white;
+  font-size: 14px;
+}
+
+/* Bottoni */
+.pomodoro-box button {
+  padding: 8px 14px;
+  margin-right: 10px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s ease;
+  display: inline-block;
+}
+
+/* Bottone Aggiungi Pomodoro */
+.pomodoro-box button:first-of-type {
+  background: #f1c40f;
+  color: #222;
+}
+
+.pomodoro-box button:first-of-type:hover {
+  background: #f39c12; 
+}
+
+/* bottone rimuovi pomodoro */
+.pomodoro-complete-btn {
+  padding: 6px 12px;
+  background-color: red; 
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.pomodoro-complete-btn:hover {
+  background-color: red
+}
+
+/* Bottone Annulla */
+.pomodoro-box button:last-of-type {
+  background: #555;
+  color: white;
+}
+
+.pomodoro-box button:last-of-type:hover {
+  background: #777;
+}
+
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

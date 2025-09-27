@@ -1020,7 +1020,4 @@ const CalendarPage: React.FC = () => {
     </div>
 )};
 
-  
-
-
 export default CalendarPage;

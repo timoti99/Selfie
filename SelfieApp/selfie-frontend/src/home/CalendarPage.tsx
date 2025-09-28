@@ -173,7 +173,7 @@ const CalendarPage: React.FC = () => {
     }
   });
   
-
+  const dayKey = dayjs(currentDate).startOf("day").toISOString();
   const token = localStorage.getItem("token");
 
   
@@ -224,46 +224,47 @@ const CalendarPage: React.FC = () => {
 
   const fetchPomodoro = useCallback(async () => {
     if (!token) return;
-    try {
-      console.log("[fetchPomodoro] start - currentDate:", currentDate);
+  try {
+    console.log("[fetchPomodoro] start - currentDayKey:", dayKey);
 
-      const putUrl = `${API}/pomodoro/completeDayAll`;
-      console.log("[fetchPomodoro] calling PUT", putUrl);
+    const putUrl = `${API}/pomodoro/completeDayAll`;
+    console.log("[fetchPomodoro] calling PUT", putUrl);
 
-      const putRes = await axios.put(putUrl,{ currentDate }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    const putRes = await axios.put(
+      putUrl,
+      { currentDate: dayKey },   
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    console.log("[fetchPomodoro] PUT response:", putRes.data);
 
-      console.log("[fetchPomodoro] PUT response:", putRes.data);
+    const res = await axios.get<PomodoroFromServer[]>(`${API}/pomodoro`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    console.log("[fetchPomodoro] GET pomodoro count:", res.data.length);
 
-      const res = await axios.get<PomodoroFromServer[]>(`${API}/pomodoro`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      console.log("[fetchPomodoro] GET pomodoro count:", res.data.length);
+    const mappedPomodoro: EventInput[] = res.data.map((p) => ({
+      id: String(p._id),
+      title: p.title || "🍅 Pomodoro",
+      start: dayjs(p.date).startOf("day").toISOString(),
+      end: dayjs(p.date).startOf("day").toISOString(),
+      allDay: true,
+      extendedProps: {
+        type: "pomodoro",
+        pomodoroData: p,
+      },
+      className: "pomodoro-event",
+    }));
 
-      const mappedPomodoro: EventInput[] = res.data.map((p) => ({
-        id: String(p._id),
-        title: p.title || "🍅 Pomodoro",
-        // normalizziamo a inizio giornata 
-        start: dayjs(p.date).startOf("day").toISOString(),
-        end: dayjs(p.date).startOf("day").toISOString(),
-        allDay: true,
-        extendedProps: {
-          type: "pomodoro",
-          pomodoroData: p,
-        },
-        className: "pomodoro-event",
-      }));
+    setPomodoroEvents(mappedPomodoro);
+  } catch (err) {
+    console.error("Errore caricamento Pomodoro", err);
+  }
+}, [token, dayKey]);  
 
-      setPomodoroEvents(mappedPomodoro);
-    } catch (err) {
-      console.error("Errore caricamento Pomodoro", err);
-    }
-  }, [token, currentDate]);
 
-  useEffect(() => {
-    fetchPomodoro();
-  }, [fetchPomodoro, currentDate]);
+useEffect(() => {
+  fetchPomodoro();
+}, [fetchPomodoro, dayKey]); 
 
   useEffect(() => {
     // unisco in ordine: eventi server, tasks eventi, poi pomodoro
@@ -286,6 +287,18 @@ const CalendarPage: React.FC = () => {
     fetchEvents();
     fetchTasks();
   }, [fetchEvents, fetchTasks]);
+
+  useEffect(() => {
+  function onPomodoroUpdated(e: Event) {
+    console.log("[Calendar] evento pomodoro:updated ricevuto", (e as CustomEvent).detail);
+    // ri-chiamare i fetch necessari per aggiornare calendario/pomodoroEvents
+    fetchPomodoro();   // la tua funzione che fetch-a i pomodori
+    fetchEvents();     // se vuoi anche aggiornare eventi generali
+  }
+
+  window.addEventListener("pomodoro:updated", onPomodoroUpdated as EventListener);
+  return () => window.removeEventListener("pomodoro:updated", onPomodoroUpdated as EventListener);
+}, [fetchPomodoro, fetchEvents]);
 
   const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
@@ -872,7 +885,24 @@ const CalendarPage: React.FC = () => {
         <p><strong>Cicli:</strong> {selectedPomodoro.cyclesPlanned} (completati {selectedPomodoro.cyclesCompleted})</p>
         <p><strong>Studio:</strong> {selectedPomodoro.studyMinutes} min, <strong>Pausa:</strong> {selectedPomodoro.breakMinutes} min</p>
 
-        <button onClick={() => navigate("/pomodoro")}>Apri Pomodoro</button>
+        <button
+        onClick={() => {
+        if (selectedPomodoro) {
+        navigate("/pomodoro", {
+        state: {
+          pomodoroId: selectedPomodoro._id,
+          token: token,
+          studyMinutes: selectedPomodoro.studyMinutes,
+          breakMinutes: selectedPomodoro.breakMinutes,
+          cyclesPlanned: selectedPomodoro.cyclesPlanned,
+          cyclesCompleted: selectedPomodoro.cyclesCompleted,
+        },
+      });
+    }
+  }}
+>
+  Vai al Pomodoro
+</button>
         <button className="pomodoro-complete-btn" onClick={handleCompletePomodoro}>
       Pomodoro Completato(elimina dal calendario)
       </button>

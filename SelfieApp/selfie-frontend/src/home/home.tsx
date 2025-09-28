@@ -4,6 +4,8 @@ import Navbar from "./Navbar";
 import "../home.css";
 import axios from "axios";
 import DOMPurify from "dompurify";
+import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 import { marked } from "marked";
 import { TimeMachineContext } from "../timeContext";
 import FullCalendar from "@fullcalendar/react";
@@ -44,6 +46,17 @@ interface NoteFromServer {
   createdAt: string;
   updatedAt: string;
 }
+
+interface PomodoroPreview {
+  _id: string;
+  date: string;
+  cyclesPlanned: number;
+  cyclesCompleted: number;
+  studyMinutes: number;
+  breakMinutes: number;
+}
+
+
 const Home: React.FC = () => {
    const { currentDate } = useContext(TimeMachineContext);
   const [events, setEvents] =  useState<EventInput[]>([]);
@@ -51,8 +64,10 @@ const Home: React.FC = () => {
   const [lastModifiedNote, setLastModifiedNote] = useState<NoteFromServer | null>(null);
   const [nextEvents, setNextEvents] = useState<EventFromServer[]>([]);
   const [nextTasks, setNextTasks] = useState<TaskFromServer[]>([]);
+  const [nextPomodoro, setNextPomodoro] = useState<PomodoroPreview[]>([]);
   const token = localStorage.getItem("token");
   const calendarRef = useRef<FullCalendar | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
    const fetchData = async () => {
@@ -172,6 +187,17 @@ const Home: React.FC = () => {
       api.gotoDate(currentDate);
     }
   }, [currentDate]);
+
+  useEffect(() => {
+     if (!token) return;
+    axios
+      .get<PomodoroPreview[]>("http://localhost:3000/api/auth/pomodoro/next?limit=2", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setNextPomodoro(res.data))
+      .catch((err) => console.error("Errore caricamento pomodoro preview:", err));
+  }, [token]);
+
   return (
   <div className="home-container">
       <Navbar />
@@ -311,6 +337,56 @@ const Home: React.FC = () => {
           <Link to="/note">Vai alle Note ➡️</Link>
         </div>
       </div>
+
+      <section className="pomodoro-preview card">
+  <h2>🍅 Prossimi eventi Pomodoro</h2>
+
+  {nextPomodoro.length === 0 && (
+    <p>
+      Nessun pomodoro in programma.{" "}
+      <button onClick={() => navigate("/pomodoro")}>Vai al Pomodoro</button>
+    </p>
+  )}
+
+  <div className="pomodoro-items">
+    {nextPomodoro.map((p) => (
+      <div key={p._id} className="pomodoro-item">
+        <p><strong>Data:</strong> {dayjs(p.date).format("DD/MM/YYYY")}</p>
+        <p>
+          <strong>Durata studio:</strong> {p.studyMinutes} min<br />
+          <strong>Pausa:</strong> {p.breakMinutes} min<br />
+          <strong>Cicli:</strong> {p.cyclesCompleted} / {p.cyclesPlanned}
+        </p>
+        {p.cyclesCompleted < p.cyclesPlanned ? (
+          <p>⚠️ Mancano {p.cyclesPlanned - p.cyclesCompleted} cicli</p>
+        ) : (
+          <p>✅ Completato</p>
+        )}
+        <button
+          onClick={() =>
+            navigate("/pomodoro", {
+              state: {
+                pomodoroId: p._id,
+                studyMinutes: p.studyMinutes,
+                breakMinutes: p.breakMinutes,
+                cyclesPlanned: p.cyclesPlanned,
+                cyclesCompleted: p.cyclesCompleted,
+              },
+            })
+          }
+        >
+          Vai a questo Pomodoro
+        </button>
+      </div>
+    ))}
+  </div>
+
+  {nextPomodoro.length > 0 && (
+    <div className="global-btn">
+      <button onClick={() => navigate("/pomodoro")}>Vai alla pagina Pomodoro</button>
+    </div>
+  )}
+</section>
 
       <div style={{ marginTop: "1rem", textAlign: "center" }}>
         <Link className="app-link" to="/login">

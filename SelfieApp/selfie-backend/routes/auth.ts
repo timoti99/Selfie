@@ -889,6 +889,26 @@ router.put("/pomodoro/completeDayAll", authenticateToken, async (req, res) => {
   }
 });
 
+//route per avere il pomodoro nella home
+router.get("/pomodoro/next", authenticateToken, async (req, res) => {
+  const userId = getUserIdOr401(req, res);
+  if (!userId) return;
+
+  try {
+    const today = dayjs().startOf("day").toDate();
+    const limit = Number(req.query.limit) || 2; // default 2
+    const pomodoros = await Pomodoro.find({ userId, date: { $gte: today } })
+      .sort({ date: 1 })
+      .limit(limit)
+      .exec();
+
+    res.json(pomodoros);
+  } catch (err) {
+    console.error("Errore fetch prossimi pomodori:", err);
+    res.status(500).json({ error: "Errore server" });
+  }
+});
+
 //route per eliminare gli eventi pomodoro
 router.delete("/pomodoro/:id", authenticateToken, async (req, res) => {
   const userId = getUserIdOr401(req, res);

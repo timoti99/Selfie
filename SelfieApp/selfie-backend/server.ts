@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
+import path from "path";
 
 dotenv.config();
 
@@ -15,6 +16,8 @@ app.use(express.json());
 
 
 // Controllo della variabile MONGO_URI prima di usarla
+console.log("MONGO_URI:", process.env.MONGO_URI);
+
 if (!MONGO_URI) {
   console.error("Errore: MONGO_URI non è definito nel file .env")
   process.exit(1);
@@ -31,6 +34,11 @@ mongoose.connect(MONGO_URI)
   
 app.use("/api/auth", authRoutes);
 
+app.use(express.static(path.join(__dirname, "../../selfie-frontend/dist")));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../../selfie-frontend/dist", "index.html"));
+});
 
 
 // Avvio del server

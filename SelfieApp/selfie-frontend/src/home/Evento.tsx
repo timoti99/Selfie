@@ -2,7 +2,7 @@ import React, {useState, useEffect} from "react";
 import axios from "axios";
 import '../App.css';
 
-const API = "http://localhost:3000/api/auth";
+const API = "http://localhost:8000/api/auth";
 
 interface SelectedEvent {
   id: string | null;

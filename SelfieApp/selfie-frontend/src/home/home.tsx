@@ -12,7 +12,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import { EventInput, CalendarApi } from "@fullcalendar/core";
 
-const API = "http://localhost:3000/api/auth";
+const API = "http://localhost:8000/api/auth";
 
 interface EventFromServer {
   _id: string;

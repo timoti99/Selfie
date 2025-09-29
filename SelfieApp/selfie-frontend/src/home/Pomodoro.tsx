@@ -24,7 +24,7 @@ interface LocationState {
 
 type Phase = "study" | "break";
 
-const API = "http://localhost:3000/api/auth";
+const API = "http://localhost:8000/api/auth";
 
 function secondsToHMS(sec: number) {
   const mm = Math.floor(sec / 60).toString().padStart(2, "0");

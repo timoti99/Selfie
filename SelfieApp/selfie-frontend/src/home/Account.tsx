@@ -23,7 +23,7 @@ export default function Account() {
 
     setToken(storedToken);
 
-    axios.get("http://localhost:3000/api/auth/me", {
+    axios.get("http://localhost:8000/api/auth/me", {
       headers: {
         Authorization: `Bearer ${storedToken}`
       }

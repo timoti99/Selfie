@@ -12,15 +12,16 @@ import dayjs from "dayjs";
 
 import { Router, Request, Response, NextFunction } from "express";
 
-dotenv.config();
-
 const router = Router();
 
 
-// Controllo che JWT_SECRET sia definito
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret) {
-  throw new Error("JWT_SECRET non definito nel file .env!");
+function jwtEstraction() {
+  // Controllo che JWT_SECRET sia definito
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error("JWT_SECRET non definito nel file .env!");
+  }
+  return jwtSecret;
 }
 
 function authenticateToken(req: Request, res: Response, next: NextFunction): void {
@@ -32,6 +33,7 @@ function authenticateToken(req: Request, res: Response, next: NextFunction): voi
 
   const token = authHeader.split(" ")[1];
   try {
+    let jwtSecret = jwtEstraction();
     const decoded: any = jwt.verify(token, jwtSecret!) as { id: string};
     (req as any).user = { id: decoded.id, userId: decoded.id };
     next();
@@ -130,8 +132,9 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch){ res.status(400).json({ message: "Password errata" });
     return;  
-  }
+    }
 
+    let jwtSecret = jwtEstraction();
     // Genera un token JWT con una chiave segreta valida
     const token = jwt.sign({ id: user._id }, jwtSecret, { expiresIn: "1h" });
 

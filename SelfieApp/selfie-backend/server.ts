@@ -5,10 +5,11 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
 import path from "path";
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+console.log("Variabili caricate:", process.env);
 
 const app = express();
-const PORT: string = process.env.PORT || "3000";
+const PORT: string = process.env.PORT || "8000";
 const MONGO_URI: string | undefined = process.env.MONGO_URI;
 
 app.use(cors());
@@ -34,10 +35,10 @@ mongoose.connect(MONGO_URI)
   
 app.use("/api/auth", authRoutes);
 
-app.use(express.static(path.join(__dirname, "../../selfie-frontend/dist")));
+app.use(express.static(__dirname));
 
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../../selfie-frontend/dist", "index.html"));
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
 

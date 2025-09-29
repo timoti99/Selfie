@@ -388,33 +388,57 @@ useEffect(() => {
   };
 
   const handleAddPomodoro = async () => {
-    if (!token) return;
-    try {
-      await axios.post(
-        `${API}/pomodoro`,
-        {
-          date: newPomodoro.date,
-          cyclesPlanned: newPomodoro.cyclesPlanned,
-          studyMinutes: newPomodoro.studyMinutes,
-          breakMinutes: newPomodoro.breakMinutes,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+   if (!newPomodoro.date) {
+    alert("Inserire una data obbligatoriamente");
+    return;
+  }
 
-    
-      await fetchPomodoro();
+  if (!newPomodoro.cyclesPlanned || !newPomodoro.studyMinutes || !newPomodoro.breakMinutes) {
+    alert("Tutti i campi sono obbligatori");
+    return;
+  }
 
-      setShowPomodoroBox(false);
-      setNewPomodoro({
-        date: "",
-        cyclesPlanned: 5,
-        studyMinutes: 30,
-        breakMinutes: 5,
-      });
-    } catch (err) {
-      console.error("Errore creazione pomodoro", err);
+  if (!token) {
+    alert("Non sei autenticato. Fai login di nuovo.");
+    return;
+  }
+
+  try {
+    await axios.post(
+      `${API}/pomodoro`,
+      {
+        date: newPomodoro.date,
+        cyclesPlanned: newPomodoro.cyclesPlanned,
+        studyMinutes: newPomodoro.studyMinutes,
+        breakMinutes: newPomodoro.breakMinutes,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    await fetchPomodoro();
+
+    setShowPomodoroBox(false);
+    setNewPomodoro({
+      date: "",
+      cyclesPlanned: 5,
+      studyMinutes: 30,
+      breakMinutes: 5,
+    });
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      console.error("Errore creazione pomodoro", err.response || err.message);
+      if (err.response?.status === 401) {
+        alert("Sessione scaduta o non valida. Fai login di nuovo.");
+      } else if (err.response?.data?.error) {
+        alert(err.response.data.error);
+      }
+    } else if (err instanceof Error) {
+      console.error("Errore generico:", err.message);
+    } else {
+      console.error("Errore sconosciuto", err);
     }
-  };
+  }
+};
 
   const handleCompletePomodoro = async () => {
     if (!selectedPomodoro) return;

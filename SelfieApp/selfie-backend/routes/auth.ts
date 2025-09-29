@@ -809,14 +809,8 @@ router.post("/pomodoro", authenticateToken, async (req, res) => {
 
   const { date, cyclesPlanned, studyMinutes, breakMinutes } = req.body;
 
-
   if (!date) {
-    res.status(400).json({ error: "Inserire una data obbligatoriamente" });
-    return;
-  }
-  if (!cyclesPlanned || !studyMinutes || !breakMinutes) {
-    res.status(400).json({ error: "Tutti i campi sono obbligatori" });
-    return;
+  return res.status(400).json({ error: "Inserire una data obbligatoriamente" });
   }
 
   try {

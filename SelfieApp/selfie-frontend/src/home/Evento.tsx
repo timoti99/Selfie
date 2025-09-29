@@ -199,14 +199,24 @@ function Evento({ event, fetch, onClose }: props){
                     }
                     onChange={(e) =>
                       setSelectedEvent((prev) => {
+                         if (!prev) return prev;
+        const value = e.target.value;
+        if (!value) {
+          // reset campo → metti stringa vuota
+          return { ...prev, start: "" };
+        }
 
-                        const baseDate = !isNaN(new Date(prev.start).getTime()) ? new Date(prev.start) : new Date();
+        const baseDate =
+          prev.start && !isNaN(new Date(prev.start).getTime())
+            ? new Date(prev.start)
+            : new Date();
 
-                        baseDate.setHours(parseInt(e.target.value.split(":")[0]), parseInt(e.target.value.split(":")[1]), 0, 0);
+        const [h, m] = value.split(":");
+        baseDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
 
-                        return { ...prev, start: baseDate.toISOString() };
-                      })
-                    }
+        return { ...prev, start: baseDate.toISOString() };
+      })
+    }
                   />
                 </label>
 
@@ -224,14 +234,23 @@ function Evento({ event, fetch, onClose }: props){
                     }
                     onChange={(e) =>
                       setSelectedEvent((prev) => {
+        if (!prev) return prev;
+        const value = e.target.value;
+        if (!value) {
+          return { ...prev, end: "" };
+        }
 
-                        const baseDate = !isNaN(new Date(prev.end).getTime()) ? new Date(prev.end) : new Date();
+        const baseDate =
+          prev.end && !isNaN(new Date(prev.end).getTime())
+            ? new Date(prev.end)
+            : new Date();
 
-                        baseDate.setHours( parseInt(e.target.value.split(":")[0]), parseInt(e.target.value.split(":")[1]), 0, 0 );
+        const [h, m] = value.split(":");
+        baseDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
 
-                        return { ...prev, end: baseDate.toISOString() };
-                      })
-                    }
+        return { ...prev, end: baseDate.toISOString() };
+      })
+    }
                   />
                 </label>
 
@@ -267,8 +286,8 @@ function Evento({ event, fetch, onClose }: props){
                     }
                     onChange={(e) =>
                       setSelectedEvent((prev) =>
-                        prev ? { ...prev, start: new Date(e.target.value).toISOString() } : prev
-                      )
+                    prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
+                     )
                     }
                   />
                 </label>
@@ -290,7 +309,7 @@ function Evento({ event, fetch, onClose }: props){
                     }
                     onChange={(e) =>
                       setSelectedEvent((prev) =>
-                        prev ? { ...prev, end: new Date(e.target.value).toISOString() } : prev
+                        prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
                       )
                     }
                   />
@@ -408,7 +427,9 @@ function Evento({ event, fetch, onClose }: props){
                 : ""
               }
               onChange={(e) =>
-                setSelectedEvent((prev) => prev ? { ...prev, start: new Date(e.target.value).toISOString() } : prev)
+                setSelectedEvent((prev) => 
+                  prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
+            )
               }
             />
           </label>
@@ -425,7 +446,9 @@ function Evento({ event, fetch, onClose }: props){
                 : ""
               }
               onChange={(e) =>
-                setSelectedEvent((prev) => prev ? { ...prev, end: new Date(e.target.value).toISOString() } : prev)
+                setSelectedEvent((prev) =>
+                  prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
+            )
               }
             />
           </label>

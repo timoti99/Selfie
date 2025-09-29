@@ -45,7 +45,7 @@ function Evento({ event, fetch, onClose }: props){
     const startDate = new Date(selectedEvent.start);
     const endDate = new Date(selectedEvent.end);
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    if (isNaN(startDate.getTime()) || (!selectedEvent.allDay && isNaN(endDate.getTime()))) {
       alert("Errore: data di inizio o fine non valida.");
       return;
     }
@@ -199,24 +199,24 @@ function Evento({ event, fetch, onClose }: props){
                     }
                     onChange={(e) =>
                       setSelectedEvent((prev) => {
-                         if (!prev) return prev;
-        const value = e.target.value;
-        if (!value) {
-          // reset campo → metti stringa vuota
-          return { ...prev, start: "" };
-        }
+                        if (!prev) return prev;
+                        const value = e.target.value;
+                        if (!value) {
+                          // reset campo → metti stringa vuota
+                          return { ...prev, start: "" };
+                        }
 
-        const baseDate =
-          prev.start && !isNaN(new Date(prev.start).getTime())
-            ? new Date(prev.start)
-            : new Date();
+                        const baseDate =
+                          prev.start && !isNaN(new Date(prev.start).getTime())
+                            ? new Date(prev.start)
+                            : new Date();
 
-        const [h, m] = value.split(":");
-        baseDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+                        const [h, m] = value.split(":");
+                        baseDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
 
-        return { ...prev, start: baseDate.toISOString() };
-      })
-    }
+                        return { ...prev, start: baseDate.toISOString() };
+                      })
+                    }
                   />
                 </label>
 
@@ -234,23 +234,23 @@ function Evento({ event, fetch, onClose }: props){
                     }
                     onChange={(e) =>
                       setSelectedEvent((prev) => {
-        if (!prev) return prev;
-        const value = e.target.value;
-        if (!value) {
-          return { ...prev, end: "" };
-        }
+                        if (!prev) return prev;
+                        const value = e.target.value;
+                        if (!value) {
+                          return { ...prev, end: "" };
+                        }
 
-        const baseDate =
-          prev.end && !isNaN(new Date(prev.end).getTime())
-            ? new Date(prev.end)
-            : new Date();
+                        const baseDate =
+                          prev.end && !isNaN(new Date(prev.end).getTime())
+                            ? new Date(prev.end)
+                            : new Date();
 
-        const [h, m] = value.split(":");
-        baseDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+                        const [h, m] = value.split(":");
+                        baseDate.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
 
-        return { ...prev, end: baseDate.toISOString() };
-      })
-    }
+                        return { ...prev, end: baseDate.toISOString() };
+                      })
+                    }
                   />
                 </label>
 
@@ -414,44 +414,47 @@ function Evento({ event, fetch, onClose }: props){
               }
             />
           </label>
+          {!selectedEvent.allDay && (
+            <>
+              <label>
+                Inizio:
+                <input
+                  className="input-field"
+                  type="datetime-local"
+                  value={selectedEvent.start ? 
+                    new Date(
+                      new Date(selectedEvent.start).getTime() - new Date(selectedEvent.start).getTimezoneOffset() * 60000
+                    ).toISOString().slice(0, 16) 
+                    : ""
+                  }
+                  onChange={(e) =>
+                    setSelectedEvent((prev) => 
+                      prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
+                    )
+                  }
+                />
+              </label>
 
-          <label>
-            Inizio:
-            <input
-              className="input-field"
-              type="datetime-local"
-              value={selectedEvent.start ? 
-                new Date(
-                  new Date(selectedEvent.start).getTime() - new Date(selectedEvent.start).getTimezoneOffset() * 60000
-                ).toISOString().slice(0, 16) 
-                : ""
-              }
-              onChange={(e) =>
-                setSelectedEvent((prev) => 
-                  prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
-            )
-              }
-            />
-          </label>
-
-          <label>
-            Fine:
-            <input
-              className="input-field"
-              type="datetime-local"
-              value={selectedEvent.end ? 
-                new Date(
-                  new Date(selectedEvent.end).getTime() - new Date(selectedEvent.end).getTimezoneOffset() * 60000
-                ).toISOString().slice(0, 16)
-                : ""
-              }
-              onChange={(e) =>
-                setSelectedEvent((prev) =>
-                  prev ? { ...prev, end: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
-            )
-              }
-            />
-          </label>
+              <label>
+                Fine:
+                <input
+                  className="input-field"
+                  type="datetime-local"
+                  value={selectedEvent.end ? 
+                    new Date(
+                      new Date(selectedEvent.end).getTime() - new Date(selectedEvent.end).getTimezoneOffset() * 60000
+                    ).toISOString().slice(0, 16)
+                    : ""
+                  }
+                  onChange={(e) =>
+                    setSelectedEvent((prev) =>
+                      prev ? { ...prev, end: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
+                    )
+                  }
+                />
+              </label>
+            </>
+          )}
 
           <label>
             Luogo:

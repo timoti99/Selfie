@@ -89,7 +89,7 @@ function Evento({ event, fetch, onClose }: props){
       } 
       else if (selectedEvent.id && !selectedEvent.extendedProps?.recurrenceId) {
         await axios.put(
-          `http://localhost:3000/api/auth/eventi`,
+          `http://localhost:8000/api/auth/eventi`,
           {
             id: selectedEvent.id,
             title: selectedEvent.title,

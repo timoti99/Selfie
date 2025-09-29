@@ -569,7 +569,7 @@ useEffect(() => {
     if (!selectedTask) return;
     try {
       await axios.put(
-        `http://localhost:3000/api/auth/tasks/${selectedTask._id}`,
+        `http://localhost:8000/api/auth/tasks/${selectedTask._id}`,
         {
           title: selectedTask.title,
           startDate: selectedTask.startDate,
@@ -622,6 +622,7 @@ useEffect(() => {
             <li>🔵 Evento con orario specifico</li>
             <li>🟥 Evento ricorrente</li>
             <li>🟩 Attività</li>
+            <li>🟨 Evento pomodoro</li>
           </ul>
         </div>
 
@@ -638,6 +639,13 @@ useEffect(() => {
           </p>
           <p>
             Clicca sulla ❌ nella lista in basso per eliminare l'attività dal calendario.
+          </p>
+          <p>Pomodoro:</p>
+          <p>
+            Clicca sul pulsante in basso per creare un evento Pomodoro🍅
+          </p>
+          <p>
+            clicca sull'evento pomodoro per andare alla pagina pomodoro oppure segnarlo come completato(elimina dal calendario)
           </p>
         </div>
       </div>

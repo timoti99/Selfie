@@ -191,7 +191,7 @@ const Home: React.FC = () => {
   useEffect(() => {
      if (!token) return;
     axios
-      .get<PomodoroPreview[]>("http://localhost:3000/api/auth/pomodoro/next?limit=2", {
+      .get<PomodoroPreview[]>("http://localhost:8000/api/auth/pomodoro/next?limit=2", {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setNextPomodoro(res.data))

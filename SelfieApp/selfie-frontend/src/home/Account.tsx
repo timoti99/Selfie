@@ -45,7 +45,7 @@ export default function Account() {
     }
 
     try {
-      const res = await axios.put("http://localhost:3000/api/auth/change-password", {
+      const res = await axios.put("http://localhost:8000/api/auth/change-password", {
         userId,
         currentPassword,
         newPassword

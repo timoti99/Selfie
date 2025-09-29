@@ -309,7 +309,7 @@ function Evento({ event, fetch, onClose }: props){
                     }
                     onChange={(e) =>
                       setSelectedEvent((prev) =>
-                        prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
+                        prev ? { ...prev, end: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
                       )
                     }
                   />
@@ -447,7 +447,7 @@ function Evento({ event, fetch, onClose }: props){
               }
               onChange={(e) =>
                 setSelectedEvent((prev) =>
-                  prev ? { ...prev, start: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
+                  prev ? { ...prev, end: e.target.value ? new Date(e.target.value).toISOString() : "" } : prev
             )
               }
             />

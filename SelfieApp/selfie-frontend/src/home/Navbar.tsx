@@ -7,6 +7,8 @@ const Navbar: React.FC = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [showTimeMachine, setShowTimeMachine] = useState(false);
   const [user, setUser] = useState<{ nome: string; cognome: string; username: string } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false); // 🔹 nuovo stato per l’hamburger
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,6 +43,11 @@ const Navbar: React.FC = () => {
 
   const toggleMenu = () => {
     setShowMenu(!showMenu);
+     if (!showMenu) {
+    document.body.classList.add("no-scroll");
+  } else {
+    document.body.classList.remove("no-scroll");
+  }
   };
 
   return (
@@ -48,12 +55,24 @@ const Navbar: React.FC = () => {
       <nav className="navbar">
         <div className="navbar-spacer" />
 
-        <div className="navbar-links">
-          <Link to="/home">Home</Link>
-          <Link to="/pomodoro">Pomodoro</Link>
-          <Link to="/calendar">Calendario</Link>
-          <Link to="/note">Note</Link>
-          <button className="time-machine-btn" onClick={() => setShowTimeMachine(true)}>🕒 Time Machine</button>
+        <button
+          className="navbar-toggle"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          ☰
+        </button>
+
+        <div className={`navbar-links ${menuOpen ? "open" : ""}`}>
+          <Link to="/home" onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link to="/pomodoro" onClick={() => setMenuOpen(false)}>Pomodoro</Link>
+          <Link to="/calendar" onClick={() => setMenuOpen(false)}>Calendario</Link>
+          <Link to="/note" onClick={() => setMenuOpen(false)}>Note</Link>
+          <button className="time-machine-btn" onClick={() => {
+            setShowTimeMachine(true);
+            setMenuOpen(false);
+          }}>
+            🕒 Time Machine
+          </button>
         </div>
 
         <button className="settings-button" onClick={toggleMenu}>

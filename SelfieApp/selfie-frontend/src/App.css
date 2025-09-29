@@ -130,7 +130,7 @@ body, html {
   }
 }
 
-
+/* Navbar */
 .navbar-spacer {
   width: 120px;
 }
@@ -144,6 +144,7 @@ body, html {
   height: 60px;
 }
 
+/* Link desktop */
 .navbar-links {
   display: flex;
   gap: 20px;
@@ -160,6 +161,49 @@ body, html {
 .navbar-links a:hover {
   text-decoration: underline;
 }
+
+/* RESPONSIVE  */
+@media (max-width: 768px) {
+  .navbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px;
+  }
+
+  /* di default link nascosti su mobile */
+  .navbar-links {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  /* classe per aprire i link */
+  .navbar-links.open {
+    display: flex;
+  }
+
+  /* bottone hamburger */
+  .navbar-toggle {
+    display: block;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+  }
+}
+
+/* nascondi hamburger su desktop */
+@media (min-width: 769px) {
+  .navbar-toggle {
+    display: none;
+  }
+}
+
+
 
 .time-machine-btn {
   background-color: #007bff; 
@@ -291,3 +335,34 @@ body, html {
     background-color: #5e1313;
   }
 
+  /* Blocco lo scroll quando side-menu è aperto */
+body.no-scroll {
+  overflow: hidden;
+}
+
+@media (max-width: 480px) {
+  .form-container {
+    padding: 20px;          
+    margin: 0 10px;         
+    border-radius: 8px;
+  }
+
+  .form-container h1 {
+    font-size: 22px;       
+  }
+
+  .form-container p {
+    font-size: 12px;
+  }
+
+  .form-container input,
+  .app-input {
+    font-size: 14px;
+    padding: 8px;
+  }
+
+  .app-button {
+    font-size: 14px;
+    padding: 10px;
+  }
+}

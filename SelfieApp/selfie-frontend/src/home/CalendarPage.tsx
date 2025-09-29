@@ -300,9 +300,28 @@ useEffect(() => {
   return () => window.removeEventListener("pomodoro:updated", onPomodoroUpdated as EventListener);
 }, [fetchPomodoro, fetchEvents]);
 
+  const resetNewEvent = (startDate: string | null = null) => {
+  setNewEvent({
+    title: '',
+    start: startDate || '',
+    end: startDate 
+      ? new Date(new Date(startDate).getTime() + 30 * 60000).toISOString() 
+      : '',
+    durationMinutes: 60,
+    location: '',
+    allDay: false,
+    isRecurring: false,
+    recurrence: {
+      frequency: '',
+      repeatCount: 0,
+      repeatUntil: ''
+    }
+  });
+};
+
   const handleDateClick = (arg: DateClickArg) => {
     setSelectedDate(arg.dateStr);
-    setNewEvent(prev => ({ ...prev, start: arg.dateStr}));
+    resetNewEvent(arg.dateStr);
     setShowEventBox(true);
   };
 
@@ -342,6 +361,7 @@ useEffect(() => {
         });
         await fetchEvents();
         setShowEventBox(false);
+
       } catch (err) {
         console.error(err);
       }
@@ -382,6 +402,7 @@ useEffect(() => {
 
       setEvents(prev => [...prev, mapped]);
       setShowEventBox(false);
+
     } catch (err) {
       console.error(err);
     }
@@ -707,10 +728,13 @@ useEffect(() => {
                     .slice(0, 16)
                 : ""
             }
-            onChange={(e) => {
-              const date = new Date(e.target.value);
-              setNewEvent((prev) => ({ ...prev, start: date.toISOString() })); // ✅ niente offset qui
-            }}
+           onChange={(e) => {
+    const value = e.target.value;
+    setNewEvent((prev) => ({
+      ...prev,
+      start: value ? new Date(value).toISOString() : ""  
+    }));
+  }}
           />
 
           <input
@@ -724,9 +748,12 @@ useEffect(() => {
                 : ""
             }
             onChange={(e) => {
-              const date = new Date(e.target.value);
-              setNewEvent((prev) => ({ ...prev, end: date.toISOString() })); 
-            }}
+    const value = e.target.value;
+    setNewEvent((prev) => ({
+      ...prev,
+      end: value ? new Date(value).toISOString() : ""  
+    }));
+  }}
           />
           <input
             type="text"
@@ -996,7 +1023,10 @@ useEffect(() => {
 
     <div style={{ marginTop: "1rem", textAlign: "center" }}>
       <button
-        onClick={() => setShowEventBox(true)}
+        onClick={() =>{
+          resetNewEvent();
+          setShowEventBox(true);
+        }}
         style={{
           marginRight: "10px",
           padding: "6px 12px",

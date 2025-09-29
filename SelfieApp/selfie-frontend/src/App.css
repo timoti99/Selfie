@@ -335,10 +335,6 @@ body, html {
     background-color: #5e1313;
   }
 
-  /* Blocco lo scroll quando side-menu è aperto */
-body.no-scroll {
-  overflow: hidden;
-}
 
 @media (max-width: 480px) {
   .form-container {

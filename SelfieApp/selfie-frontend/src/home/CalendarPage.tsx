@@ -17,7 +17,7 @@ import '../calendarPage.css';
 import { TimeMachineContext } from '../timeContext';
 import Evento from './Evento'
 
-const API = "http://localhost:3000/api/auth";
+const API = "http://localhost:8000/api/auth";
 
 Modal.setAppElement('#root');
 

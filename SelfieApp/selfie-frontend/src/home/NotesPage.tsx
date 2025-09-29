@@ -9,7 +9,7 @@ import "../notePage.css";
 
 marked.setOptions({ async: false });
 
-const API = "http://localhost:8000/api/auth";
+const API = "/api/auth";
 
 type Note = {
   _id: string;

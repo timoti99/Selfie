@@ -17,7 +17,7 @@ import '../calendarPage.css';
 import { TimeMachineContext } from '../timeContext';
 import Evento from './Evento'
 
-const API = "http://localhost:8000/api/auth";
+const API = "/api/auth";
 
 Modal.setAppElement('#root');
 
@@ -590,7 +590,7 @@ useEffect(() => {
     if (!selectedTask) return;
     try {
       await axios.put(
-        `http://localhost:8000/api/auth/tasks/${selectedTask._id}`,
+        `/api/auth/tasks/${selectedTask._id}`,
         {
           title: selectedTask.title,
           startDate: selectedTask.startDate,

@@ -2,7 +2,7 @@ import React, {useState, useEffect} from "react";
 import axios from "axios";
 import '../App.css';
 
-const API = "http://localhost:8000/api/auth";
+const API = "/api/auth";
 
 interface SelectedEvent {
   id: string | null;
@@ -89,7 +89,7 @@ function Evento({ event, fetch, onClose }: props){
       } 
       else if (selectedEvent.id && !selectedEvent.extendedProps?.recurrenceId) {
         await axios.put(
-          `http://localhost:8000/api/auth/eventi`,
+          `/api/auth/eventi`,
           {
             id: selectedEvent.id,
             title: selectedEvent.title,

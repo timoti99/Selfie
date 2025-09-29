@@ -23,7 +23,7 @@ export default function Account() {
 
     setToken(storedToken);
 
-    axios.get("http://localhost:8000/api/auth/me", {
+    axios.get("/api/auth/me", {
       headers: {
         Authorization: `Bearer ${storedToken}`
       }
@@ -45,7 +45,7 @@ export default function Account() {
     }
 
     try {
-      const res = await axios.put("http://localhost:8000/api/auth/change-password", {
+      const res = await axios.put("/api/auth/change-password", {
         userId,
         currentPassword,
         newPassword

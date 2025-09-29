@@ -20,7 +20,7 @@ const Navbar: React.FC = () => {
       }
 
       try {
-        const res = await fetch("http://localhost:8000/api/auth/me", {
+        const res = await fetch("/api/auth/me", {
           headers: {
             Authorization: `Bearer ${token}`,
           },

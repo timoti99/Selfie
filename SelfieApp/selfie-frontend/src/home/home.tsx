@@ -12,7 +12,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import { EventInput, CalendarApi } from "@fullcalendar/core";
 
-const API = "http://localhost:8000/api/auth";
+const API = "/api/auth";
 
 interface EventFromServer {
   _id: string;
@@ -191,7 +191,7 @@ const Home: React.FC = () => {
   useEffect(() => {
      if (!token) return;
     axios
-      .get<PomodoroPreview[]>("http://localhost:8000/api/auth/pomodoro/next?limit=2", {
+      .get<PomodoroPreview[]>("/api/auth/pomodoro/next?limit=2", {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setNextPomodoro(res.data))

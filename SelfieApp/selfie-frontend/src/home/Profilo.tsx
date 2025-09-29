@@ -23,7 +23,7 @@ export default function Profilo() {
 
         setToken(storedToken);
 
-        axios.get("http://localhost:8000/api/auth/me", {
+        axios.get("/api/auth/me", {
             headers: {
                 Authorization: `Bearer ${storedToken}`
             }
@@ -45,7 +45,7 @@ export default function Profilo() {
     const handleSave = () => {
         if (!token) return;
 
-        axios.put("http://localhost:8000/api/auth/update", {
+        axios.put("/api/auth/update", {
             username: username,
             nome: name,
             cognome: surname,

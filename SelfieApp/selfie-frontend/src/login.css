@@ -1,7 +1,11 @@
 .login-container {
-  background-color: #000;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
+
+  background-image: url("/img/immagine\ Selfie\ 3.jpg"); /* immagine in public */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }

@@ -124,6 +124,16 @@ const mapTasksToEvents = (tsks: Task[]) =>
     },
 ]);
 
+const dedupeEvents = (arr: EventInput[]) => {
+  const seen = new Map<string, EventInput>();
+  for (const ev of arr) {
+    const key = ev.id ?? `${ev.title}-${(ev.start ?? "").toString()}`;
+    // mantieni l'ultimo (server dovrebbe fornire id stabile)
+    seen.set(key, ev);
+  }
+  return Array.from(seen.values());
+};
+
 const CalendarPage: React.FC = () => {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [showEventBox, setShowEventBox] = useState(false);
@@ -267,13 +277,13 @@ useEffect(() => {
 }, [fetchPomodoro, dayKey]); 
 
   useEffect(() => {
-    // unisco in ordine: eventi server, tasks eventi, poi pomodoro
-    setEvents([
-      ...serverEventsMapped,
-      ...mapTasksToEvents(tasks),
-      ...pomodoroEvents,
-    ]);
-  }, [serverEventsMapped, tasks, pomodoroEvents]);
+  const merged = [
+    ...serverEventsMapped,
+    ...mapTasksToEvents(tasks),
+    ...pomodoroEvents,
+  ];
+  setEvents(dedupeEvents(merged));
+}, [serverEventsMapped, tasks, pomodoroEvents]);
 
   //effect per modificare la data corrente
   useEffect(() => {
@@ -379,29 +389,13 @@ useEffect(() => {
     };
 
     try {
-      const res = await axios.post(`${API}/eventi`, singlePayload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+  await axios.post(`${API}/eventi`, singlePayload, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-      const saved = res.data;
-      const mapped = {
-        id: String(saved._id),
-        title: saved.title,
-        start: new Date(saved.start),
-        end: saved.end ? new Date(saved.end) : undefined,
-        allDay: !!saved.allDay,
-        extendedProps: {
-          location: saved.location || "",
-          durationMinutes: saved.durationMinutes || 60,
-          isRecurring: !!saved.isRecurring,
-          recurrenceId: saved.recurrenceId ?? null,
-          overridesOriginalId: saved.overridesOriginalId ?? null,
-          isCancelled: !!saved.isCancelled
-        }
-      };
+      await fetchEvents();
 
-      setEvents(prev => [...prev, mapped]);
-      setShowEventBox(false);
+  setShowEventBox(false);
 
     } catch (err) {
       console.error(err);
